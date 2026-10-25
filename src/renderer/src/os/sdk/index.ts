@@ -1,4 +1,12 @@
 import type { AppManifest } from '../kernel/apps/manifest.schema'
+import { fs as kernelFs } from '../kernel/fs'
+import { sound as kernelSound, SystemSound } from '../kernel/sound'
+import { settings as kernelSettings, SettingKey, SettingValue } from '../kernel/settings'
+import { events as kernelEvents, EventName, EventData } from '../kernel/events'
+import { storage as kernelStorage, ScheduledRecord } from '../kernel/storage'
+import { scheduler as kernelScheduler } from '../kernel/scheduler'
+import { media as kernelMedia } from '../kernel/media'
+import { notifications as kernelNotifications } from '../kernel/notifications'
 
 export type LaunchArgs = { filePath?: string; [key: string]: unknown }
 
@@ -15,26 +23,34 @@ export interface AppMenu {
 export function useOS() {
   return {
     app: { id: 'app', manifest: {} as AppManifest, instanceId: 'inst-0' },
-    fs: {} as Record<string, unknown>,
+    fs: kernelFs,
     window: {
       setTitle: (_title: string) => {},
       close: async () => {},
       focus: () => {}
     },
     dialogs: {} as Record<string, unknown>,
-    notify: (_n: { title: string; body?: string; sound?: boolean; launchArgs?: LaunchArgs }) => {},
+    notify: (n: { title: string; body?: string; sound?: boolean; launchArgs?: LaunchArgs }) => {
+      kernelNotifications.post({
+        appId: 'system',
+        title: n.title,
+        body: n.body,
+        sound: n.sound,
+        launchArgs: n.launchArgs
+      })
+    },
     storage: {
-      get: async <T>(_key: string): Promise<T | undefined> => undefined,
-      set: async <T>(_key: string, _value: T): Promise<void> => {},
-      delete: async (_key: string): Promise<void> => {},
-      list: async <T>(_prefix?: string): Promise<{ key: string; value: T }[]> => []
+      get: async <T>(key: string): Promise<T | undefined> => kernelStorage.getAppData('app', key),
+      set: async <T>(key: string, value: T): Promise<void> => kernelStorage.setAppData('app', key, value),
+      delete: async (key: string): Promise<void> => kernelStorage.deleteAppData('app', key),
+      list: async <T>(prefix?: string): Promise<{ key: string; value: T }[]> => kernelStorage.listAppData('app', prefix)
     },
     settings: {
-      get: (_key: string): unknown => undefined,
-      set: async (_key: string, _value: unknown): Promise<void> => {}
+      get: <K extends SettingKey>(key: K): SettingValue<K> => kernelSettings.get(key),
+      set: async <K extends SettingKey>(key: K, value: SettingValue<K>): Promise<void> => kernelSettings.set(key, value)
     },
     sound: {
-      playSystem: (_name: string) => {}
+      playSystem: (name: SystemSound) => kernelSound.playSystem(name)
     },
     apps: {
       launch: (_appId: string, _args?: LaunchArgs) => {},
@@ -43,17 +59,18 @@ export function useOS() {
       list: (): AppManifest[] => []
     },
     scheduler: {
-      schedule: async (_job: Record<string, unknown>): Promise<string> => '',
-      cancel: async (_id: string): Promise<void> => {},
-      list: async (): Promise<Record<string, unknown>[]> => []
+      schedule: async (job: Omit<ScheduledRecord, 'id' | 'appId'>): Promise<string> =>
+        kernelScheduler.schedule({ ...job, appId: 'app' }),
+      cancel: async (id: string): Promise<void> => kernelScheduler.cancel(id),
+      list: async (): Promise<ScheduledRecord[]> => kernelScheduler.list('app')
     },
     media: {
-      getCamera: async () => ({} as MediaStream),
-      getMicrophone: async () => ({} as MediaStream),
-      listCameras: async () => []
+      getCamera: async (constraints?: MediaTrackConstraints) => kernelMedia.getCamera(constraints),
+      getMicrophone: async (constraints?: MediaTrackConstraints) => kernelMedia.getMicrophone(constraints),
+      listCameras: async () => kernelMedia.listCameras()
     },
     events: {
-      on: (_e: string, _h: (d: unknown) => void) => () => {}
+      on: <E extends EventName>(e: E, h: (d: EventData<E>) => void) => kernelEvents.on(e, h)
     }
   }
 }
@@ -64,12 +81,12 @@ export function useLaunchArgs(): LaunchArgs {
 
 export function useOpenFileHandler(_handler: (path: string) => void): void {}
 
-export function useSetting<T>(_key: string): T | undefined {
-  return undefined
+export function useSetting<K extends SettingKey>(key: K): SettingValue<K> {
+  return kernelSettings.get(key)
 }
 
 export function useSystemVolume(): number {
-  return 1
+  return kernelSound.getEffectiveVolume()
 }
 
 export function useFsWatch(_path: string): unknown[] {
