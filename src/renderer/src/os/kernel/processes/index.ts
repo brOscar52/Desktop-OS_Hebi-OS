@@ -77,12 +77,20 @@ export class ProcessesService {
     return { pid, instanceId }
   }
 
+  spawnApp(appId: string, appName: string): { pid: number; instanceId: string } {
+    return this.registerAppProcess(appId, appName)
+  }
+
   terminateAppProcess(instanceId: string): void {
     const proc = this.appProcesses.get(instanceId)
     if (proc) {
       this.appProcesses.delete(instanceId)
       events.emit('app:terminated', { appId: proc.appId || '', instanceId })
     }
+  }
+
+  terminate(instanceId: string): void {
+    this.terminateAppProcess(instanceId)
   }
 
   listProcesses(): ProcessInfo[] {

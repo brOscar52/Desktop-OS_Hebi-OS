@@ -71,3 +71,76 @@ Documento de seguimiento del avance por fases según `ESPECIFICACION.md`.
   - `npm run build`: Compilación de producción exitosa (main, preload, renderer).
   - Persistencia de datos comprobada en Dexie.
 - **Desviaciones y contratos modificados:** Ninguna.
+
+---
+
+## Fase 2 — Shell y ventanas
+
+- **Estado:** Completada con éxito
+- **Fecha:** 2026-10-25
+- **Objetivo:** El escritorio completo con ventanas reales; las apps siguen siendo provisionales.
+- **Detalle de tareas realizadas:**
+  - [x] Eliminada la pantalla provisional de la Fase 0/1; ahora se monta el entorno interactivo de escritorio completo.
+  - [x] **Componentes compartidos `@os/ui` (Sección 6):**
+    - `Button`, `IconButton`, `TextField`, `TextArea`, `Select`, `Toggle`, `Slider`, `Checkbox`, `SegmentedControl`, `NavigationPane`, `List`, `CommandBar`, `Tabs`, `EmptyState`, `AppIcon`, `FileIcon`, `FileBrowser`, `ContextMenu`, `Flyout`, `InfoBar`.
+  - [x] **Gestor de ventanas (`kernel/windows`):**
+    - Interfaz `WindowState` y store Zustand para apilamiento, foco, estado (`normal`, `minimized`, `maximized`), cascada y dimensiones iniciales.
+    - Acciones completas: `open`, `close`, `minimize`, `maximize`, `restore`, `toggleMaximize`, `focus`, `minimizeAll` (mostrar escritorio), `updateBounds`, `setTitle`, `setModal`, `setDirty`, `setOpenFileHandler`, `setAppMenus`.
+    - Respeto estricto a `singleInstance: true`: restaura y enfoca la ventana existente y le envía el archivo a abrir vía `openFileHandler`.
+    - Maximizar respeta el área útil (toda la pantalla menos la barra de tareas de 48px).
+  - [x] **Marco de ventana (`shell/window-frame`):**
+    - Radio de 8px, material Mica con desenfoque (`var(--material-mica)`), borde sutil y sombras Fluent.
+    - Barra de título de 32px: ícono y título atenuados al perder foco, botones minimizar, maximizar/restaurar y cerrar.
+    - Botón de cerrar se vuelve rojo (`#c42b1c`) con ícono blanco al pasar el cursor.
+    - Doble clic en barra de título maximiza o restaura. Arrastre fluido por barra de título y redimensionamiento por 8 bordes/esquinas.
+    - Menú contextual de ventana al hacer clic en el ícono o clic derecho en la barra de título (Restaurar, Minimizar, Maximizar, Acerca de `<App>`, Cerrar).
+    - Barra de menús dentro de la ventana (`useAppMenus`), con añadido automático del menú "Ayuda › Acerca de <App>".
+    - Diálogo modal "Acerca de `<App>`" mostrando ícono, portada, nombre, versión, autor y descripción leídos del manifiesto.
+  - [x] **Diálogos y cambios sin guardar (`kernel/dialogs` y `shell/dialogs`):**
+    - `DialogsApi`: `alert`, `confirm`, `prompt`, `choose`, `openFile`, `saveFile`.
+    - Modales de ventana (`WindowModalHost`) que bloquean y se centran solo sobre su ventana.
+    - Modales de sistema (`SystemDialogHost`) para diálogos de nivel superior.
+    - Flujo único de cambios sin guardar: aviso "¿Quieres guardar los cambios en '<documentName>'? [Guardar] [No guardar] [Cancelar]" conectado a cerrar ventana, barra de tareas y flujo de energía (apagar/reiniciar).
+  - [x] **Barra de tareas (`shell/taskbar`):**
+    - Altura de 48px, material Mica, alineación configurable (`taskbar.alignment`).
+    - Botón de Inicio con logo personalizado.
+    - Apps ancladas (`taskbar.pinned`) y apps abiertas. Guion corto gris para apps abiertas y guion largo en color de énfasis para la app enfocada.
+    - Clic abre, enfoca o minimiza. Clic derecho: abrir nueva ventana, anclar/desanclar, cerrar ventana.
+    - Soporte para arrastrar archivos sobre el ícono de la app para abrir con ella.
+  - [x] **Bandeja del sistema y reloj (`shell/tray`):**
+    - Indicadores de hardware para cámara y micrófono activos.
+    - Flyout acrílico de Wi-Fi: interruptor, lista de redes con candado/intensidad, conexión con clave y desconexión.
+    - Flyout acrílico de Volumen: deslizador 0-100, botón de silencio y sincronización bidireccional.
+    - Flyout acrílico de Batería: nivel y estado de carga (`navigator.getBattery`).
+    - Reloj en 2 líneas sincronizado con configuración de fecha/hora; clic abre flyout con calendario mensual interactivo.
+    - Franja fina en el extremo derecho ("Mostrar escritorio") que minimiza o restaura todas las ventanas.
+  - [x] **Menú Inicio (`shell/start-menu`):**
+    - Flyout acrílico flotante (~640×680px) sobre la barra de tareas.
+    - Cuadro de búsqueda que filtra en tiempo real por nombre y descripción.
+    - Sección "Anclado" con cuadrícula de 6 columnas respetando `start.pinned`.
+    - Vista "Todas las aplicaciones ›" con listado alfabético agrupado por letra (A-Z).
+    - Franja inferior con avatar/nombre del usuario (menú de cuenta, bloqueo y cerrar sesión) y botón de energía (reiniciar y apagar).
+    - Clic derecho en app: Abrir, Anclar/Desanclar de Inicio, Anclar a barra de tareas, Añadir al escritorio.
+  - [x] **Escritorio (`shell/desktop`):**
+    - Fondo de pantalla reactivo (`appearance.wallpaper`).
+    - Muestra archivos de `~/Escritorio`, accesos a apps de `desktop.items` y Papelera de reciclaje permanente (ícono dinámico vacío/lleno según contenido).
+    - Arrastre con ajuste a cuadrícula invisible y tamaño según `desktop.iconSize`.
+    - Selección con clic y rectángulo de selección translúcido en color de énfasis (marquesina).
+    - Menú contextual de fondo: Ver (tamaño de íconos), Ordenar, Nuevo (Carpeta / Documento de texto), Añadir widget, Personalizar.
+    - Menú contextual de elementos: Abrir, Abrir con…, Renombrar, Mover a la papelera, Propiedades.
+    - Soltar archivos sobre la Papelera los envía a ella; doble clic la abre en Explorador.
+  - [x] **Capa de Widgets (`shell/widgets-host`):**
+    - Capa interactiva entre el fondo y los íconos, persistida en `desktop.widgets`.
+    - Arrastre libre, botón "..." con menú para cambiar de tamaño y quitar.
+    - 4 widgets funcionales implementados: `clock` (Reloj digital con fecha y segundos), `calendar` (Calendario del mes y eventos), `quick-note` (Nota rápida persistente), `system-status` (Batería, red wifi y almacenamiento).
+  - [x] **Notificaciones y asociaciones:**
+    - Toasts emergentes (`ToastHost`) en la esquina inferior derecha, auto-cierre en 5s y apertura de app con `launchArgs` al hacer clic.
+    - Arrastre y soltar con tipo `application/x-simos-node`.
+    - Resolución de asociaciones de archivos por extensión y prioridad (`launcher.ts`).
+  - [x] **Integración con `@os/sdk`:**
+    - `useOS`, `useLaunchArgs`, `useOpenFileHandler`, `useSetting`, `useSystemVolume`, `useFsWatch`, `useAppMenus`, `useUnsavedChanges`, `useProcesses`, `useAccount`.
+- **Verificación:**
+  - `npm run typecheck`: 0 errores.
+  - `npm run lint`: 0 errores, 0 advertencias.
+  - `npm run build`: Compilación de producción exitosa (main, preload, renderer).
+- **Desviaciones y contratos modificados:** Ninguna.

@@ -43,6 +43,10 @@ export class NotificationsService {
     this.activeNotifications.delete(id)
   }
 
+  get(id: string): NotificationItem | undefined {
+    return this.activeNotifications.get(id)
+  }
+
   list(): NotificationItem[] {
     return Array.from(this.activeNotifications.values())
   }

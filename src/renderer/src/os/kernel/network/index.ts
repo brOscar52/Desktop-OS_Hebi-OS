@@ -22,6 +22,14 @@ export class NetworkService {
     return settings.get('network.wifiEnabled')
   }
 
+  isEnabled(): boolean {
+    return this.isWifiEnabled()
+  }
+
+  scan(): WifiNetwork[] {
+    return this.getNetworks()
+  }
+
   async setWifiEnabled(enabled: boolean): Promise<void> {
     await settings.set('network.wifiEnabled', enabled)
     if (!enabled) {
@@ -29,9 +37,17 @@ export class NetworkService {
     }
   }
 
+  async setEnabled(enabled: boolean): Promise<void> {
+    return this.setWifiEnabled(enabled)
+  }
+
   getConnectedSsid(): string | null {
     if (!this.isWifiEnabled()) return null
     return settings.get('network.connectedSsid')
+  }
+
+  isConnected(): boolean {
+    return this.getConnectedSsid() !== null
   }
 
   async connect(ssid: string, password?: string): Promise<boolean> {

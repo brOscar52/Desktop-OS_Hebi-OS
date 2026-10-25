@@ -62,10 +62,28 @@ export class SettingsService {
     }
   }
 
-  subscribe(callback: (key: SettingKey, value: unknown) => void): () => void {
-    this.subscribers.add(callback)
+  subscribe<K extends SettingKey>(
+    keyOrCallback: K | ((key: SettingKey, value: unknown) => void),
+    maybeCallback?: (value: SettingValue<K>) => void
+  ): () => void {
+    if (typeof keyOrCallback === 'function') {
+      const cb = keyOrCallback
+      this.subscribers.add(cb)
+      return () => {
+        this.subscribers.delete(cb)
+      }
+    }
+
+    const targetKey = keyOrCallback
+    const cb = maybeCallback!
+    const wrapper = (changedKey: SettingKey, value: unknown) => {
+      if (changedKey === targetKey) {
+        cb(value as SettingValue<K>)
+      }
+    }
+    this.subscribers.add(wrapper)
     return () => {
-      this.subscribers.delete(callback)
+      this.subscribers.delete(wrapper)
     }
   }
 

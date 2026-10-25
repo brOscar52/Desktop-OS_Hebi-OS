@@ -25,6 +25,10 @@ export class StorageService {
     await db.user.put(user)
   }
 
+  async setUser(user: UserRecord): Promise<void> {
+    await this.saveUser(user)
+  }
+
   async hasUser(): Promise<boolean> {
     const count = await db.user.count()
     return count > 0
