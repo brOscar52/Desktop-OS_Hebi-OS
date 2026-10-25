@@ -1,0 +1,30 @@
+{
+  "id": "camera",
+  "name": "Cámara",
+  "description": "Captura fotos y graba videos con la cámara web.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "multimedia",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": false,
+    "order": 16
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 840,
+    "height": 600,
+    "minWidth": 520,
+    "minHeight": 380,
+    "resizable": true,
+    "singleInstance": true
+  },
+  "fileAssociations": [],
+  "permissions": [
+    "camera",
+    "microphone"
+  ]
+}

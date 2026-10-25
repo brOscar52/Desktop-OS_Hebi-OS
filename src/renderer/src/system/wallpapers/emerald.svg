@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" fill="none">
+  <rect width="1920" height="1080" fill="#0A221E" />
+  <defs>
+    <filter id="emeraldBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="90" />
+    </filter>
+  </defs>
+  <g filter="url(#emeraldBlur)" opacity="0.55">
+    <circle cx="500" cy="500" r="500" fill="#059669" />
+    <circle cx="1400" cy="600" r="550" fill="#0D9488" />
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" fill="none">
+  <rect width="1920" height="1080" fill="#EBF4F6" />
+  <defs>
+    <filter id="lagoonBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="90" />
+    </filter>
+  </defs>
+  <g filter="url(#lagoonBlur)" opacity="0.45">
+    <circle cx="400" cy="300" r="450" fill="#2DD4BF" />
+    <circle cx="1500" cy="400" r="500" fill="#38BDF8" />
+    <ellipse cx="1000" cy="800" rx="800" ry="400" fill="#34D399" />
+  </g>
+  <path d="M 0,700 Q 500,600 1000,750 T 1920,650 L 1920,1080 L 0,1080 Z" fill="#D6E8ED" fill-opacity="0.5" />
+</svg>

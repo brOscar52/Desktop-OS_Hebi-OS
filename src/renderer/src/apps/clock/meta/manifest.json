@@ -1,0 +1,27 @@
+{
+  "id": "clock",
+  "name": "Reloj",
+  "description": "Alarmas, temporizadores, cronómetro y reloj mundial.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "utilidades",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": false,
+    "order": 8
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 780,
+    "height": 540,
+    "minWidth": 480,
+    "minHeight": 360,
+    "resizable": true,
+    "singleInstance": false
+  },
+  "fileAssociations": [],
+  "permissions": []
+}

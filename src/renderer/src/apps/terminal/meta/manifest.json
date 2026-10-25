@@ -1,0 +1,27 @@
+{
+  "id": "terminal",
+  "name": "Terminal",
+  "description": "Línea de comandos de hebi OS.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "utilidades",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": true,
+    "order": 3
+  },
+  "taskbar": {
+    "pinnedByDefault": true
+  },
+  "window": {
+    "width": 800,
+    "height": 500,
+    "minWidth": 450,
+    "minHeight": 300,
+    "resizable": true,
+    "singleInstance": false
+  },
+  "fileAssociations": [],
+  "permissions": []
+}

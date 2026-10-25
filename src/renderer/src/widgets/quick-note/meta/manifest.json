@@ -1,0 +1,12 @@
+{
+  "id": "quick-note",
+  "name": "Nota rápida",
+  "description": "Anota ideas al instante en el escritorio.",
+  "icon": "icon.svg",
+  "sizes": [
+    "small",
+    "medium"
+  ],
+  "defaultSize": "small",
+  "ownerApp": "notes"
+}

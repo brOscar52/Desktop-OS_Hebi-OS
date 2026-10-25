@@ -1,0 +1,13 @@
+{
+  "id": "calendar",
+  "name": "Calendario",
+  "description": "Eventos y vista rápida del mes.",
+  "icon": "icon.svg",
+  "sizes": [
+    "small",
+    "medium",
+    "large"
+  ],
+  "defaultSize": "medium",
+  "ownerApp": "calendar"
+}

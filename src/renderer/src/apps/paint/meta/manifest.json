@@ -1,0 +1,35 @@
+{
+  "id": "paint",
+  "name": "Paint",
+  "description": "Dibuja, colorea y edita gráficos e imágenes.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "multimedia",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": false,
+    "order": 14
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 920,
+    "height": 620,
+    "minWidth": 600,
+    "minHeight": 400,
+    "resizable": true,
+    "singleInstance": false
+  },
+  "fileAssociations": [
+    {
+      "extensions": [
+        "png"
+      ],
+      "role": "editor",
+      "priority": 5
+    }
+  ],
+  "permissions": []
+}

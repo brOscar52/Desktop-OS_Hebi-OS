@@ -1,0 +1,41 @@
+{
+  "id": "image-viewer",
+  "name": "Fotos",
+  "description": "Visualizador de imágenes y fotografías.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "multimedia",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": true,
+    "order": 11
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 840,
+    "height": 580,
+    "minWidth": 450,
+    "minHeight": 320,
+    "resizable": true,
+    "singleInstance": false
+  },
+  "fileAssociations": [
+    {
+      "extensions": [
+        "png",
+        "jpg",
+        "jpeg",
+        "gif",
+        "webp",
+        "svg",
+        "bmp"
+      ],
+      "role": "viewer",
+      "priority": 10
+    }
+  ],
+  "permissions": []
+}

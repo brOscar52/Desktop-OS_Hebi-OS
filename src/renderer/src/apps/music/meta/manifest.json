@@ -1,0 +1,39 @@
+{
+  "id": "music",
+  "name": "Música",
+  "description": "Reproductor de pistas y colecciones de audio.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "multimedia",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": false,
+    "order": 12
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 800,
+    "height": 550,
+    "minWidth": 480,
+    "minHeight": 340,
+    "resizable": true,
+    "singleInstance": true
+  },
+  "fileAssociations": [
+    {
+      "extensions": [
+        "mp3",
+        "ogg",
+        "wav",
+        "flac",
+        "m4a"
+      ],
+      "role": "viewer",
+      "priority": 10
+    }
+  ],
+  "permissions": []
+}

@@ -1,0 +1,30 @@
+{
+  "id": "settings",
+  "name": "Configuración",
+  "description": "Personaliza y configura las opciones de tu sistema.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "sistema",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": true,
+    "order": 4
+  },
+  "taskbar": {
+    "pinnedByDefault": true
+  },
+  "window": {
+    "width": 960,
+    "height": 650,
+    "minWidth": 600,
+    "minHeight": 450,
+    "resizable": true,
+    "singleInstance": true
+  },
+  "fileAssociations": [],
+  "permissions": [
+    "settings:write",
+    "system:account"
+  ]
+}

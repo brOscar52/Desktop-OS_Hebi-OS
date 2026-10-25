@@ -1,0 +1,27 @@
+{
+  "id": "files",
+  "name": "Explorador de archivos",
+  "description": "Explora carpetas, administra archivos y unidades.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "sistema",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": true,
+    "order": 1
+  },
+  "taskbar": {
+    "pinnedByDefault": true
+  },
+  "window": {
+    "width": 900,
+    "height": 600,
+    "minWidth": 500,
+    "minHeight": 350,
+    "resizable": true,
+    "singleInstance": false
+  },
+  "fileAssociations": [],
+  "permissions": []
+}

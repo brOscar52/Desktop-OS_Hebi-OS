@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="folderSysBack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+    <linearGradient id="folderSysFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2dd4bf" />
+      <stop offset="100%" stop-color="#0d9488" />
+    </linearGradient>
+  </defs>
+  <path d="M6 14C6 11.7909 7.79086 10 10 10H20L24 14H38C40.2091 14 42 15.7909 42 18V36C42 38.2091 40.2091 40 38 40H10C7.79086 40 6 38.2091 6 36V14Z" fill="url(#folderSysBack)" />
+  <rect x="6" y="18" width="36" height="22" rx="4" fill="url(#folderSysFront)" />
+  <circle cx="24" cy="29" r="4" fill="#ffffff" fill-opacity="0.85" />
+</svg>

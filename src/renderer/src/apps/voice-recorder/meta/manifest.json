@@ -1,0 +1,29 @@
+{
+  "id": "voice-recorder",
+  "name": "Grabadora de sonido",
+  "description": "Graba audio y notas de voz con el micrófono.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "multimedia",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": false,
+    "order": 15
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 460,
+    "height": 540,
+    "minWidth": 380,
+    "minHeight": 420,
+    "resizable": true,
+    "singleInstance": false
+  },
+  "fileAssociations": [],
+  "permissions": [
+    "microphone"
+  ]
+}

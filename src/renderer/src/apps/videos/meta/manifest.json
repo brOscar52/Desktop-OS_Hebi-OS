@@ -1,0 +1,38 @@
+{
+  "id": "videos",
+  "name": "Películas y TV",
+  "description": "Reproductor de videos y películas.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "multimedia",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": false,
+    "order": 13
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 860,
+    "height": 560,
+    "minWidth": 500,
+    "minHeight": 350,
+    "resizable": true,
+    "singleInstance": false
+  },
+  "fileAssociations": [
+    {
+      "extensions": [
+        "mp4",
+        "webm",
+        "ogg",
+        "mov"
+      ],
+      "role": "viewer",
+      "priority": 10
+    }
+  ],
+  "permissions": []
+}

@@ -1,0 +1,27 @@
+{
+  "id": "help",
+  "name": "Ayuda",
+  "description": "Guía del usuario, novedades y primeros pasos.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "sistema",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": false,
+    "order": 17
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 900,
+    "height": 620,
+    "minWidth": 580,
+    "minHeight": 400,
+    "resizable": true,
+    "singleInstance": true
+  },
+  "fileAssociations": [],
+  "permissions": []
+}

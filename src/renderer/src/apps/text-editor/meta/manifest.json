@@ -1,0 +1,36 @@
+{
+  "id": "text-editor",
+  "name": "Bloc de notas",
+  "description": "Crea y edita documentos de texto plano y Markdown.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "productividad",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": true,
+    "order": 2
+  },
+  "taskbar": {
+    "pinnedByDefault": true
+  },
+  "window": {
+    "width": 760,
+    "height": 520,
+    "minWidth": 380,
+    "minHeight": 260,
+    "resizable": true,
+    "singleInstance": false
+  },
+  "fileAssociations": [
+    {
+      "extensions": [
+        "txt",
+        "md"
+      ],
+      "role": "editor",
+      "priority": 10
+    }
+  ],
+  "permissions": []
+}

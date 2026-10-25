@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="hebiGrad1" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#2DD4BF" />
+      <stop offset="100%" stop-color="#0D9488" />
+    </linearGradient>
+    <linearGradient id="hebiGrad2" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="hebiGrad3" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <!-- Modern stylized geometric knot/ribbon representing hebi (fluid dynamic ribbon) -->
+  <rect x="18" y="18" width="28" height="28" rx="8" fill="url(#hebiGrad1)" />
+  <rect x="54" y="18" width="28" height="28" rx="8" fill="url(#hebiGrad2)" />
+  <rect x="18" y="54" width="28" height="28" rx="8" fill="url(#hebiGrad3)" />
+  <rect x="54" y="54" width="28" height="28" rx="8" fill="url(#hebiGrad1)" />
+  <circle cx="50" cy="50" r="10" fill="#F0FDFA" />
+  <circle cx="50" cy="50" r="5" fill="#0D9488" />
+</svg>

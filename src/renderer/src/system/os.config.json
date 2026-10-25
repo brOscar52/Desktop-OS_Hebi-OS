@@ -1,0 +1,22 @@
+{
+  "name": "hebi OS",
+  "version": "1.0",
+  "bootDurationMs": 2500,
+  "startFullscreen": false,
+  "simulatedMemoryMB": 16384,
+  "defaults": {
+    "theme": "light",
+    "accent": "#0D9488",
+    "wallpaper": "aurora",
+    "timezone": "America/Caracas",
+    "hour24": false,
+    "taskbarAlignment": "center"
+  },
+  "networks": [
+    { "ssid": "Casa_5G", "secured": true, "password": "12345678", "signal": 4 },
+    { "ssid": "Oficina_WiFi", "secured": true, "password": "empresa_segura", "signal": 3 },
+    { "ssid": "Cafeteria_Libre", "secured": false, "password": "", "signal": 2 },
+    { "ssid": "Red_Invitados", "secured": true, "password": "bienvenido", "signal": 3 },
+    { "ssid": "Campus_Uni", "secured": true, "password": "estudiante2026", "signal": 4 }
+  ]
+}

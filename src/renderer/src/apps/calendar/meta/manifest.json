@@ -1,0 +1,27 @@
+{
+  "id": "calendar",
+  "name": "Calendario",
+  "description": "Gestiona eventos, fechas y recordatorios.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "productividad",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": true,
+    "order": 7
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 880,
+    "height": 600,
+    "minWidth": 550,
+    "minHeight": 400,
+    "resizable": true,
+    "singleInstance": false
+  },
+  "fileAssociations": [],
+  "permissions": []
+}

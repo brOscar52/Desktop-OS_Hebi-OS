@@ -1,0 +1,29 @@
+{
+  "id": "task-manager",
+  "name": "Administrador de tareas",
+  "description": "Monitorea procesos y rendimiento del sistema.",
+  "version": "1.0.0",
+  "author": "hebi OS",
+  "icon": "icon.svg",
+  "category": "sistema",
+  "startMenu": {
+    "visible": true,
+    "pinnedByDefault": false,
+    "order": 6
+  },
+  "taskbar": {
+    "pinnedByDefault": false
+  },
+  "window": {
+    "width": 850,
+    "height": 560,
+    "minWidth": 520,
+    "minHeight": 380,
+    "resizable": true,
+    "singleInstance": true
+  },
+  "fileAssociations": [],
+  "permissions": [
+    "system:processes"
+  ]
+}
