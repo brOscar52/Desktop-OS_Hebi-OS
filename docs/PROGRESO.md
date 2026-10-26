@@ -144,3 +144,87 @@ Documento de seguimiento del avance por fases según `ESPECIFICACION.md`.
   - `npm run lint`: 0 errores, 0 advertencias.
   - `npm run build`: Compilación de producción exitosa (main, preload, renderer).
 - **Desviaciones y contratos modificados:** Ninguna.
+
+---
+
+## Fase 3 — Apps del sistema
+
+- **Estado:** Completada con éxito
+- **Fecha:** 2026-10-25
+- **Objetivo:** Implementar las 4 aplicaciones principales del sistema operativo (`files`, `terminal`, `settings`, `task-manager`) sobre `@os/sdk` y `@os/ui`.
+- **Detalle de tareas realizadas:**
+  - [x] **Explorador de archivos (`files`):**
+    - **Barra de comandos:** Nuevo (Carpeta / Documento de texto), Renombrar, Duplicar, Copiar, Mover, Eliminar (mover a papelera), Importar desde el equipo (`fs.importFromHost`), Ordenar (Nombre, Fecha, Tipo, Tamaño ascendente/descendente) y Ver (Íconos grandes, Lista, Detalles con columnas ordenables).
+    - **Panel de navegación:** Inicio (`~/`), Escritorio, Descargas, Documentos, Imágenes, Música, Videos, Disco local (C:) y acceso directo a Papelera de reciclaje.
+    - **Barra de direcciones:** Migas de pan interactivas estilo Windows con segmentos clicables, campo de edición manual con conversión bidireccional (`toDisplayPath` / `fromDisplayPath`), botones Atrás, Adelante e Historial, y botón Subir de nivel.
+    - **Vistas:**
+      - *Íconos grandes:* cuadrícula con íconos Fluent grandes y nombre centrado.
+      - *Lista:* disposición horizontal/vertical compacta.
+      - *Detalles:* tabla con Nombre, Fecha de modificación formateada, Tipo legible de archivo y Tamaño formateado en B/KB/MB.
+    - **Interacciones:** Selección individual, múltiple con Ctrl/Cmd o Shift, arrastre y soltar (`application/x-simos-node`) entre carpetas y hacia el escritorio, menú contextual completo en archivos y fondo (con "Abrir con…", "Cambiar nombre", "Duplicar", "Propiedades"), y diálogo modal de Propiedades con metadatos del elemento.
+    - **Vista Papelera de reciclaje:** Modo especial con acciones Restaurar, Eliminar definitivamente y Vaciar papelera de reciclaje (confirmación destructiva y sonido `empty-trash`).
+    - **Argumentos de lanzamiento:** Soporte para `launchArgs.filePath` (navega a la carpeta contenedora y selecciona el archivo) y `{ view: 'trash' }`, más `useOpenFileHandler`.
+  - [x] **Terminal (`terminal`):**
+    - Aspecto de Windows Terminal moderna: tema oscuro con material Mica translúcido y tipografía monoespaciada (`Cascadia Code`, `Consolas`, `monospace`).
+    - Prompt interactivo `PS <ruta visible>> ` (e.g. `PS C:\Usuarios\Usuario> `).
+    - Soporte completo para rutas con `\`, `/`, `C:\` y `~` mediante `fs.fromDisplayPath` y `fs.toDisplayPath`.
+    - Comandos y alias implementados:
+      - `help`: ayuda estructurada de comandos.
+      - `ls [-l]` (`dir`): listado normal o detallado con permisos, fecha, tamaño y color.
+      - `cd [ruta]`: cambio de directorio con validación y resolución de relativos/absolutos.
+      - `pwd`: impresión de directorio actual en formato Windows.
+      - `mkdir [-p]` (`md`): creación de carpetas con soporte recursivo.
+      - `touch`: creación de archivo vacío o actualización de timestamp.
+      - `cat` (`type`): lectura e impresión de archivos de texto.
+      - `echo` (con `>` para sobrescribir y `>>` para concatenar a archivos).
+      - `rm [-r]` (`del`): eliminación segura enviando a la papelera vía `fs.trash`.
+      - `mv` (`move`): movimiento o renombramiento vía `fs.move`.
+      - `cp [-r]` (`copy`): copia recursiva vía `fs.copy`.
+      - `tree [ruta]`: representación gráfica en árbol ASCII de directorios.
+      - `open` (`start`): apertura de archivo con su aplicación predeterminada vía `apps.openFile`.
+      - `date`: fecha y hora del sistema en español.
+      - `whoami`: usuario actual (`hebi\<usuario>`).
+      - `clear` (`cls`): limpieza de pantalla.
+      - `history`: historial numerado de comandos.
+    - Historial interactivo con flechas Arriba / Abajo.
+    - Autocompletado con la tecla Tab para comandos y nombres de archivos/carpetas en el directorio actual.
+    - Mensajes de error coherentes y en español.
+    - Uso exclusivo de `fs` y `apps` desde `@os/sdk`.
+  - [x] **Configuración (`settings`):**
+    - Permisos declarados: `settings:write` y `system:account`. `singleInstance: true`.
+    - Estilo de Windows 11 con panel de navegación izquierdo (tarjeta de perfil del usuario con avatar y nombre) y área de contenido estructurada por tarjetas Fluent.
+    - Secciones completas:
+      - **Personalización:** modo de color (claro, oscuro, automático), paleta de colores de énfasis interactiva encabezada por turquesa (`#0d9488`), efectos de transparencia (Mica/Acrílico) y selector de fondo de pantalla con miniaturas de `system/wallpapers` y selector de archivos del VFS.
+      - **Escritorio y barra de tareas:** alineación de la barra de tareas (centro/izquierda), tamaño de íconos del escritorio (pequeño/mediano/grande), botón para restablecer posiciones de íconos y botón para restablecer accesos directos anclados.
+      - **Sonido:** deslizador de volumen 0-100 %, silenciador maestro, sonidos del sistema y botón de prueba de sonido (`sound.playSystem('notification')`).
+      - **Red e Internet:** interruptor de Wi-Fi, tarjeta de red conectada con intensidad de señal, desconexión, lista de redes disponibles, conexión con validación de contraseña y opción de olvidar red.
+      - **Hora e idioma:** selector de zona horaria IANA, selector de formato de 24 horas y reloj interactivo con vista previa en vivo.
+      - **Cuentas:** cambio de nombre de usuario con persistencia en el perfil y VFS, cambio de avatar desde archivo y formulario de cambio de contraseña con validación de clave actual y longitud mínima.
+    - Soporte para `launchArgs.section` y `launchArgs.setWallpaper`.
+  - [x] **Administrador de tareas (`task-manager`):**
+    - Permiso declarado: `system:processes`. `singleInstance: true`.
+    - Navegación lateral entre páginas "Procesos" y "Rendimiento".
+    - **Página de Procesos:**
+      - Barra superior con métricas globales: Total de procesos, CPU global (%) y Memoria en uso / total (MB y GB).
+      - Tabla ordenable por Nombre, PID, CPU % y Memoria MB.
+      - Selección de proceso y botón "Finalizar tarea":
+        - Bloqueo de finalización de procesos críticos del sistema (PID < 1000).
+        - Verificación estricta de cambios sin guardar (`isDirty`): si la ventana de la app a cerrar tiene cambios sin guardar, advierte con diálogo modal de pérdida de datos antes de terminar la tarea.
+    - **Página de Rendimiento:**
+      - Gráficas en tiempo real de los últimos 60 segundos para CPU y Memoria física simulada.
+      - Dibujadas en lienzo HTML5 Canvas puro (sin librerías externas), con cuadrícula Fluent, trazo estilizado y degradados translúcidos.
+      - Indicadores de velocidad de reloj (3.20 GHz), hilos/procesos activos y memoria en uso vs disponible.
+  - [x] **Revisión de integración y contratos SDK:**
+    - Se expuso la API `network` en `useOS()` para permitir gestión segura de conexiones desde las aplicaciones con permisos.
+    - Se amplió `useAccount()` con `updateName`, `updateAvatar` y `changePassword`.
+    - Se enriqueció `useProcesses()` con `isDirty` y `terminateByPid` para garantizar el flujo de finalización de procesos con aviso de pérdida de datos.
+    - Soporte completo para fondos de pantalla personalizados desde archivo en `Desktop.tsx`.
+- **Verificación:**
+  - `npm run typecheck`: 0 errores.
+  - `npm run lint`: 0 errores, 0 advertencias.
+  - `npm run build`: Compilación de producción exitosa (main, preload, renderer).
+  - Reactividad confirmada: cambios en Terminal se reflejan en tiempo real en Explorador y Escritorio vía `fs:changed`.
+  - Personalización en vivo: cambios en modo de color, acento, transparencia y fondo se reflejan de inmediato en todo el entorno.
+- **Desviaciones y contratos modificados:**
+  - Se añadieron métodos auxiliares en `windowManager` (`closeByInstanceId`, `isInstanceDirty`) y en `useAccount` / `useProcesses` para dar soporte al cierre de tareas con comprobación de estado sucio (`isDirty`) requerido en la Sección 4.9.
+

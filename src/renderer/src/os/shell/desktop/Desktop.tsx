@@ -40,6 +40,7 @@ export const Desktop: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [marquee, setMarquee] = useState<SelectionBox | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entries: ContextMenuEntry[] } | null>(null)
+  const [customWallpaperUrl, setCustomWallpaperUrl] = useState<string | null>(null)
 
   const desktopRef = useRef<HTMLDivElement>(null)
 
@@ -62,6 +63,35 @@ export const Desktop: React.FC = () => {
       unsubs.forEach((u) => u())
     }
   }, [])
+
+  useEffect(() => {
+    let active = true
+    let revokeFn: (() => void) | null = null
+
+    if (wallpaperSetting.type === 'file' && wallpaperSetting.nodeId) {
+      kernelFs
+        .pathOf(wallpaperSetting.nodeId)
+        .then((path) => kernelFs.getObjectUrl(path))
+        .then((res) => {
+          if (active) {
+            revokeFn = res.revoke
+            setCustomWallpaperUrl(res.url)
+          } else {
+            res.revoke()
+          }
+        })
+        .catch(() => {
+          if (active) setCustomWallpaperUrl(null)
+        })
+    } else {
+      setCustomWallpaperUrl(null)
+    }
+
+    return () => {
+      active = false
+      if (revokeFn) revokeFn()
+    }
+  }, [wallpaperSetting])
 
   const loadDesktopFiles = async () => {
     try {
@@ -393,7 +423,7 @@ export const Desktop: React.FC = () => {
   const wallpaperSrc =
     wallpaperSetting.type === 'builtin'
       ? wallpaperMap[wallpaperSetting.id] || auroraSvg
-      : auroraSvg
+      : customWallpaperUrl || auroraSvg
 
   const iconDimensions = {
     small: { icon: 32, box: 70 },

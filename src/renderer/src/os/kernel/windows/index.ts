@@ -157,6 +157,35 @@ class WindowService {
     return true
   }
 
+  isInstanceDirty(instanceId: string): { isDirty: boolean; documentName?: string } {
+    const store = useWindowsStore.getState()
+    const target = store.windows.find((w) => w.instanceId === instanceId)
+    return {
+      isDirty: target?.isDirty ?? false,
+      documentName: target?.documentName || target?.title
+    }
+  }
+
+  async closeByInstanceId(instanceId: string, force = false): Promise<boolean> {
+    const store = useWindowsStore.getState()
+    const target = store.windows.find((w) => w.instanceId === instanceId)
+    if (!target) {
+      processes.terminate(instanceId)
+      media.stopAllForInstance(instanceId)
+      return true
+    }
+    if (force) {
+      processes.terminate(target.instanceId)
+      media.stopAllForInstance(target.instanceId)
+      const remaining = store.windows.filter((w) => w.id !== target.id)
+      useWindowsStore.setState({ windows: remaining })
+      events.emit('window:closed', { windowId: target.id, appId: target.appId })
+      events.emit('app:terminated', { appId: target.appId, instanceId: target.instanceId })
+      return true
+    }
+    return this.close(target.id)
+  }
+
   focus(id: string): void {
     const store = useWindowsStore.getState()
     const target = store.windows.find((w) => w.id === id)

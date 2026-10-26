@@ -12,7 +12,9 @@ import { notifications as kernelNotifications } from '../kernel/notifications'
 import { windowManager } from '../kernel/windows'
 import { dialogs } from '../kernel/dialogs'
 import { openFileWithApp, getAppsForFile } from '../kernel/apps/launcher'
-import { processes, ProcessesService } from '../kernel/processes'
+import { processes, type ProcessInfo } from '../kernel/processes'
+import { network as kernelNetwork } from '../kernel/network'
+import type { UserAvatar } from '../kernel/storage'
 import { useWindowContext } from './context'
 import type { AppMenu } from '../kernel/windows/types'
 import type { DialogsApi } from '../kernel/dialogs/types'
@@ -20,6 +22,10 @@ import type { DialogsApi } from '../kernel/dialogs/types'
 export type LaunchArgs = { filePath?: string; [key: string]: unknown }
 export type { AppMenu } from '../kernel/windows/types'
 export type { DialogsApi } from '../kernel/dialogs/types'
+export type { ProcessInfo } from '../kernel/processes'
+export type { WifiNetwork } from '../kernel/network'
+export type { UserAvatar, UserRecord } from '../kernel/storage'
+export type { FsNode } from '../kernel/fs'
 
 export function useOS() {
   const { windowId, appId, instanceId } = useWindowContext()
@@ -100,6 +106,15 @@ export function useOS() {
           return kernelMedia.getMicrophone(constraints, instanceId)
         },
         listCameras: async () => kernelMedia.listCameras()
+      },
+      network: {
+        getNetworks: () => kernelNetwork.getNetworks(),
+        isWifiEnabled: () => kernelNetwork.isWifiEnabled(),
+        getConnectedSsid: () => kernelNetwork.getConnectedSsid(),
+        setWifiEnabled: (e: boolean) => kernelNetwork.setWifiEnabled(e),
+        connect: (ssid: string, pwd?: string) => kernelNetwork.connect(ssid, pwd),
+        disconnect: () => kernelNetwork.disconnect(),
+        forget: (ssid: string) => kernelNetwork.forget(ssid)
       },
       events: {
         on: <E extends EventName>(e: E, h: (d: EventData<E>) => void) => kernelEvents.on(e, h)
@@ -196,13 +211,34 @@ export function useUnsavedChanges(opts: {
   }, [windowId, opts.isDirty, opts.documentName, opts.save])
 }
 
-export function useProcesses(): ProcessesService {
+export interface SystemProcessesApi {
+  listProcesses(): ProcessInfo[]
+  getTotalMemoryMB(): number
+  terminate(instanceId: string, force?: boolean): Promise<boolean>
+  terminateByPid(pid: number, force?: boolean): Promise<boolean>
+  isDirty(instanceId: string): { isDirty: boolean; documentName?: string }
+}
+
+export function useProcesses(): SystemProcessesApi {
   const { appId } = useWindowContext()
   const registeredApp = getApp(appId)
   if (!registeredApp?.manifest.permissions?.includes('system:processes')) {
     throw new Error("Permiso 'system:processes' no declarado en el manifiesto")
   }
-  return processes
+  return {
+    listProcesses: () => processes.listProcesses(),
+    getTotalMemoryMB: () => processes.getTotalMemoryMB(),
+    isDirty: (instanceId: string) => windowManager.isInstanceDirty(instanceId),
+    terminate: async (instanceId: string, force = false) => {
+      return windowManager.closeByInstanceId(instanceId, force)
+    },
+    terminateByPid: async (pid: number, force = false) => {
+      const procs = processes.listProcesses()
+      const target = procs.find((p) => p.pid === pid)
+      if (!target || !target.instanceId) return false
+      return windowManager.closeByInstanceId(target.instanceId, force)
+    }
+  }
 }
 
 export function useAccount() {
@@ -213,7 +249,38 @@ export function useAccount() {
   }
   return {
     getUser: async () => kernelStorage.getUser(),
-    setUser: async (user: Parameters<typeof kernelStorage.setUser>[0]) => kernelStorage.setUser(user)
+    setUser: async (user: Parameters<typeof kernelStorage.setUser>[0]) => kernelStorage.setUser(user),
+    updateName: async (name: string): Promise<boolean> => {
+      const user = await kernelStorage.getUser()
+      if (!user) return false
+      const updated = { ...user, name }
+      await kernelStorage.setUser(updated)
+      kernelFs.setHomeDir(name)
+      return true
+    },
+    updateAvatar: async (avatar: UserAvatar): Promise<boolean> => {
+      const user = await kernelStorage.getUser()
+      if (!user) return false
+      const updated = { ...user, avatar }
+      await kernelStorage.setUser(updated)
+      return true
+    },
+    changePassword: async (
+      currentPassword: string,
+      newPassword: string
+    ): Promise<{ success: boolean; error?: string }> => {
+      const user = await kernelStorage.getUser()
+      if (!user) return { success: false, error: 'Usuario no encontrado' }
+      if (!window.native?.auth) return { success: false, error: 'Autenticación nativa no disponible' }
+      const valid = await window.native.auth.verifyPassword(currentPassword, user.passwordHash, user.salt)
+      if (!valid) return { success: false, error: 'La contraseña actual no es correcta' }
+      if (newPassword.length < 4) {
+        return { success: false, error: 'La nueva contraseña debe tener al menos 4 caracteres' }
+      }
+      const { hash, salt } = await window.native.auth.hashPassword(newPassword)
+      await kernelStorage.setUser({ ...user, passwordHash: hash, salt })
+      return { success: true }
+    }
   }
 }
 
