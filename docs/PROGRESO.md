@@ -346,3 +346,72 @@ Campos:
 - **Desviaciones y contratos modificados:**
   - Se agregó el evento `calendar:events-changed` a `EventMap` en `kernel/events/types.ts` y se expuso `events.emit` en `@os/sdk` para sincronizar en tiempo real el widget de escritorio del Calendario con las mutaciones de la aplicación Calendario.
 
+---
+
+## Fase 5 — Apps multimedia
+
+- **Estado:** Completada con éxito
+- **Fecha:** 2026-10-26
+- **Objetivo:** Implementar las 6 aplicaciones multimedia (`image-viewer`, `music`, `videos`, `paint`, `voice-recorder`, `camera`) sobre `@os/sdk` y `@os/ui`, respetando estrictamente la paleta turquesa (#0D9488), cero degradados en bloques grandes y la regla `no-restricted-imports`.
+- **Detalle de tareas realizadas:**
+  - [x] **Fotos (`apps/image-viewer`):**
+    - Visor completo para formatos `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `bmp`.
+    - Ajuste a la ventana, zoom con rueda del ratón y botones (−/+), desplazamiento bidireccional (pan) con arrastre y rotación en pasos de 90° horario/antihorario.
+    - Navegación entre imágenes de la misma carpeta mediante botones Anterior y Siguiente o teclado (flechas izquierda/derecha).
+    - Acción "Establecer como fondo de pantalla" vía `os.apps.launch('settings', { section: 'personalization', setWallpaper: currentNode.id })`.
+    - Diálogo modal de Propiedades mostrando: nombre, resolución nativa, tamaño formateado, tipo MIME, fecha de modificación y ruta visible estilo Windows.
+    - Manejo de `launchArgs.filePath` y `useOpenFileHandler`.
+  - [x] **Música (`apps/music`):**
+    - Manifiesto con `singleInstance: true`, reproductor para `mp3`, `ogg`, `wav`, `flac`, `m4a`.
+    - Exploración recursiva de la biblioteca en `~/Música` al abrir la app o pulsar "Actualizar".
+    - Cola de reproducción reactiva con orden manual y selección rápida.
+    - Controles completos de reproducción: Reproducir/Pausar, Anterior, Siguiente, barra de progreso seekable con arrastre.
+    - Modos de reproducción: Aleatorio (shuffle) y Repetir (desactivado, todo, una pista).
+    - Control de volumen local escalado por el volumen maestro del sistema vía `useSystemVolume()`.
+    - Título y metadatos inferidos del nombre del archivo.
+    - Reproducción continua en segundo plano con la ventana minimizada.
+  - [x] **Películas y TV (`apps/videos`):**
+    - Reproductor para `mp4`, `webm`, `ogg`, `mov` con interfaz completamente personalizada (sin controles nativos del navegador).
+    - Barra de controles flotante con auto-ocultación tras 3 segundos de inactividad del cursor y reaparición fluida al moverlo.
+    - Barra de progreso seekable con arrastre, contador de tiempo actual y duración total.
+    - Botones de salto rápido (−10 s / +10 s) y selector de velocidad de reproducción (0.5x, 1x, 1.25x, 1.5x, 2x).
+    - Control de volumen local integrado con `useSystemVolume()` y silenciado instantáneo.
+    - Modo pantalla completa dentro de la ventana del simulador.
+    - Panel lateral desplegable con la lista de videos hermanos de la misma carpeta y reproducción automática secuencial al finalizar un video.
+    - Exploración rápida de videos existentes en `~/Videos` desde el estado vacío.
+  - [x] **Paint (`apps/paint`):**
+    - Editor gráfico sobre HTML5 Canvas para archivos `.png`.
+    - Tamaño del lienzo configurable al crear (800×540 px por defecto) y opción en menú para redimensionar libremente (100 a 3000 px) conservando el dibujo existente.
+    - Barra de herramientas estilo cinta simplificada: Pincel, Lápiz, Borrador, Línea, Rectángulo, Elipse, Bote de pintura (relleno por inundación BFS de 4 direcciones), Cuentagotas (eyedropper) y Texto.
+    - Paleta de colores predefinidos Fluent (con turquesa #0D9488 como acento) más selector de color nativo del sistema.
+    - Selector de grosor de trazo (1, 2, 4, 8, 16 px) y alternador de relleno para figuras geométricas.
+    - Historial completo de Deshacer y Rehacer con hasta 35 estados vía `ImageData` (atajos Ctrl+Z y Ctrl+Y).
+    - Apertura de imágenes existentes desde VFS, Nuevo, Guardar y Guardar como `.png`.
+    - Integración obligatoria con `useUnsavedChanges({ isDirty, documentName, save: handleSave })` y título con asterisco en cambios pendientes.
+  - [x] **Grabadora de sonido (`apps/voice-recorder`):**
+    - Declaración de permiso `microphone` en manifiesto y captura de audio mediante `os.media.getMicrophone()`.
+    - Visualizador de ondas en tiempo real dibujado sobre canvas con Web Audio API (`AudioContext` y `AnalyserNode`).
+    - Flujo completo de grabación: Iniciar, Pausar, Reanudar y Detener con `MediaRecorder`.
+    - Guardado automático en `~/Música/Grabaciones/` con formato de fecha y hora: `Grabación_YYYY-MM-DD_HH-mm-ss.webm` y notificación emergente con sonido.
+    - Pestaña de lista de grabaciones con reproductor integrado (play/pause/scrubber), renombrado interactivo y eliminación con diálogo de confirmación destructivo hacia la papelera.
+    - Liberación inmediata de tracks de micrófono al detener o cerrar la app para apagar el LED de hardware y el indicador de la bandeja.
+  - [x] **Cámara (`apps/camera`):**
+    - Declaración de permisos `camera` y `microphone`, `singleInstance: true`.
+    - Vista previa de video en vivo (`<video autoPlay playsInline muted />`) desde `os.media.getCamera()`.
+    - Selector vertical de modos a la derecha: Foto y Video (con captura simultánea de audio de micrófono).
+    - Botón disparador circular Fluent de gran tamaño con respuesta táctil.
+    - Sonido `shutter` del sistema y efecto visual de destello blanco en pantalla completa al capturar fotos.
+    - Temporizador de cuenta regresiva opcional (desactivado, 3 s, 10 s) con número gigante animado en pantalla.
+    - Alternador de efecto espejo (`transform: scaleX(-1)`) aplicado al video y al canvas de captura.
+    - Selector de cámara web si existen múltiples dispositivos disponibles (`os.media.listCameras()`).
+    - Fotos guardadas como `.png` en `~/Imágenes/Cámara/Foto_YYYY-MM-DD_HH-mm-ss.png` y videos como `.webm` en `~/Videos/Cámara/Video_YYYY-MM-DD_HH-mm-ss.webm`.
+    - Miniatura de la última captura en la esquina inferior derecha con acceso directo a abrir en Fotos o Películas y TV.
+    - Mensajes y estado vacío claros si se deniegan permisos o no se detecta cámara web.
+    - Detención estricta de todos los tracks en unmount para apagar el LED de hardware de la cámara inmediatamente.
+
+- **Verificación global de la Fase 5:**
+  - `npm run typecheck`: 0 errores.
+  - `npm run lint`: 0 errores, 0 advertencias.
+  - `npm run build`: Compilación de producción exitosa en 4.62s.
+  - Cumplimiento de contratos de arquitectura: cero imports no permitidos (`no-restricted-imports`).
+- **Desviaciones y contratos modificados:** Ninguna.
