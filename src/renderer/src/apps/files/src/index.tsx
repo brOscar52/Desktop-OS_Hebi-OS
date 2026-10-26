@@ -1169,7 +1169,7 @@ export default function FilesApp(): JSX.Element {
             display: 'flex',
             flexDirection: 'column',
             overflowY: 'auto',
-            padding: '12px',
+            padding: '12px 12px 48px 12px',
             backgroundColor: 'var(--bg-card)'
           }}
           onContextMenu={openBackgroundContextMenu}

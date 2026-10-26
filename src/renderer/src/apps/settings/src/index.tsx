@@ -407,8 +407,9 @@ export default function SettingsApp(): JSX.Element {
       <div
         style={{
           flex: 1,
+          minHeight: 0,
           overflowY: 'auto',
-          padding: '24px 32px',
+          padding: '24px 32px 56px 32px',
           display: 'flex',
           flexDirection: 'column',
           gap: '24px'

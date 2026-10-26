@@ -431,7 +431,7 @@ export default function MusicApp(): JSX.Element {
       </div>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px 16px 48px 16px' }}>
         {activeTab === 'library' ? (
           filteredTracks.length === 0 ? (
             <EmptyState

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, Component, ReactNode, ErrorInfo, useCallback } from 'react'
+import React, { useState, useEffect, useRef, Suspense, Component, ReactNode, ErrorInfo } from 'react'
 import { settings, DesktopWidget } from '../../kernel/settings'
 import { getWidget } from '../../kernel/apps/registry'
 import { ContextMenu, ContextMenuEntry } from '../../ui/ContextMenu'
@@ -69,7 +69,7 @@ class WidgetErrorBoundary extends Component<WidgetErrorBoundaryProps, WidgetErro
   }
 }
 
-function getWidgetDims(size: 'small' | 'medium' | 'large'): { width: number; height: number } {
+export function getWidgetDims(size: 'small' | 'medium' | 'large'): { width: number; height: number } {
   switch (size) {
     case 'medium':
       return { width: 340, height: 160 }
@@ -81,168 +81,213 @@ function getWidgetDims(size: 'small' | 'medium' | 'large'): { width: number; hei
   }
 }
 
-function resolveWidgetCollisions(
-  rawWidgets: DesktopWidget[],
-  screenWidth: number,
-  screenHeight: number
-): { resolved: DesktopWidget[]; changed: boolean } {
-  const margin = 16
-  const resolved: DesktopWidget[] = []
-  let changed = false
-
-  for (const w of rawWidgets) {
-    const { width, height } = getWidgetDims(w.size)
-    const maxX = Math.max(16, screenWidth - width - 16)
-    const maxY = Math.max(16, screenHeight - height - 16)
-
-    let currentX = Math.max(16, Math.min(maxX, w.x))
-    let currentY = Math.max(16, Math.min(maxY, w.y))
-
-    if (currentX !== w.x || currentY !== w.y) {
-      changed = true
-    }
-
-    const overlapsWithAny = (checkX: number, checkY: number): boolean => {
-      for (const other of resolved) {
-        const { width: otherW, height: otherH } = getWidgetDims(other.size)
-        const overlapX = checkX < other.x + otherW + margin && checkX + width + margin > other.x
-        const overlapY = checkY < other.y + otherH + margin && checkY + height + margin > other.y
-        if (overlapX && overlapY) return true
-      }
-      return false
-    }
-
-    if (overlapsWithAny(currentX, currentY)) {
-      changed = true
-      let placed = false
-
-      // Try scanning grid slots on the right half of the desktop
-      for (let x = maxX; x >= 24; x -= width + 24) {
-        for (let y = 24; y <= maxY; y += height + 24) {
-          if (!overlapsWithAny(x, y)) {
-            currentX = x
-            currentY = y
-            placed = true
-            break
-          }
-        }
-        if (placed) break
-      }
-
-      if (!placed) {
-        // Fallback offset
-        const offset = (resolved.length * 40) % 200
-        currentX = Math.max(20, maxX - offset)
-        currentY = Math.max(20, 24 + offset)
-      }
-    }
-
-    resolved.push({
-      ...w,
-      x: currentX,
-      y: currentY
-    })
-  }
-
-  return { resolved, changed }
+interface DragState {
+  id: string
+  startPointerX: number
+  startPointerY: number
+  startWidgetX: number
+  startWidgetY: number
+  currentX: number
+  currentY: number
 }
 
 export const WidgetsHost: React.FC = () => {
   const [widgets, setWidgets] = useState<DesktopWidget[]>(() => {
-    const initial = settings.get('desktop.widgets') || []
-    const { resolved } = resolveWidgetCollisions(
-      initial,
-      window.innerWidth || 1280,
-      (window.innerHeight || 800) - 48
-    )
-    return resolved
+    return settings.get('desktop.widgets') || []
   })
+
+  const [draggingWidget, setDraggingWidget] = useState<DragState | null>(null)
+  const draggingRef = useRef<DragState | null>(null)
+  draggingRef.current = draggingWidget
+
+  const widgetsRef = useRef<DesktopWidget[]>(widgets)
+  widgetsRef.current = widgets
 
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
-    widgetId: string
     instanceId: string
   } | null>(null)
+
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
-  // Validate and resolve collisions on load / changes
-  const applyAndSaveWidgets = useCallback((incoming: DesktopWidget[]) => {
-    const screenW = window.innerWidth || 1280
-    const screenH = (window.innerHeight || 800) - 48
-    const { resolved, changed } = resolveWidgetCollisions(incoming, screenW, screenH)
-    setWidgets(resolved)
-    if (changed) {
+  // One-time initialization: resolve collisions only once if initial set had duplicate coordinates
+  useEffect(() => {
+    const initial = settings.get('desktop.widgets') || []
+    let hasOverlaps = false
+    const seen = new Set<string>()
+
+    for (const w of initial) {
+      const key = `${w.x},${w.y}`
+      if (seen.has(key)) {
+        hasOverlaps = true
+        break
+      }
+      seen.add(key)
+    }
+
+    if (hasOverlaps && initial.length > 1) {
+      const margin = 16
+      const screenW = window.innerWidth || 1280
+      const screenH = (window.innerHeight || 800) - 48
+      const resolved: DesktopWidget[] = []
+
+      for (const w of initial) {
+        const { width, height } = getWidgetDims(w.size)
+        const maxX = Math.max(16, screenW - width - 16)
+        const maxY = Math.max(16, screenH - height - 16)
+        let curX = Math.max(16, Math.min(maxX, w.x))
+        let curY = Math.max(16, Math.min(maxY, w.y))
+
+        const overlaps = (cx: number, cy: number) => {
+          return resolved.some((other) => {
+            const { width: ow, height: oh } = getWidgetDims(other.size)
+            return cx < other.x + ow + margin && cx + width + margin > other.x &&
+                   cy < other.y + oh + margin && cy + height + margin > other.y
+          })
+        }
+
+        if (overlaps(curX, curY)) {
+          let placed = false
+          for (let x = maxX; x >= 24; x -= width + 24) {
+            for (let y = 24; y <= maxY; y += height + 24) {
+              if (!overlaps(x, y)) {
+                curX = x
+                curY = y
+                placed = true
+                break
+              }
+            }
+            if (placed) break
+          }
+          if (!placed) {
+            const offset = (resolved.length * 36) % 180
+            curX = Math.max(20, maxX - offset)
+            curY = Math.max(20, 24 + offset)
+          }
+        }
+
+        resolved.push({ ...w, x: curX, y: curY })
+      }
+
+      setWidgets(resolved)
       settings.set('desktop.widgets', resolved).catch(() => {})
     }
   }, [])
 
+  // Sync from settings changes (e.g. widget added from desktop menu)
   useEffect(() => {
-    const unsub = settings.subscribe('desktop.widgets', (newWidgets) => {
-      applyAndSaveWidgets(newWidgets || [])
+    const unsub = settings.subscribe('desktop.widgets', (incoming) => {
+      // Do not overwrite local list if currently dragging
+      if (!draggingRef.current) {
+        setWidgets(incoming || [])
+      }
     })
     return () => unsub()
-  }, [applyAndSaveWidgets])
+  }, [])
 
-  // Dragging handler
-  const handleStartDrag = (instance: DesktopWidget, e: React.PointerEvent) => {
-    // If clicking action button or interactive controls, don't drag
-    if (
-      (e.target as HTMLElement).closest(
-        '.widget-action-btn, textarea, input, button, select, a, [data-no-drag]'
-      )
-    ) {
-      return
+  // Global window listeners for smooth drag without Dexie calls during movement
+  useEffect(() => {
+    const handleWindowPointerMove = (ev: PointerEvent) => {
+      const drag = draggingRef.current
+      if (!drag) return
+
+      const widget = widgetsRef.current.find((w) => w.id === drag.id)
+      const size = widget?.size || 'small'
+      const { width, height } = getWidgetDims(size)
+
+      const screenW = window.innerWidth
+      const screenH = window.innerHeight - 48 // Taskbar height is 48px
+      const maxX = Math.max(16, screenW - width - 16)
+      const maxY = Math.max(16, screenH - height - 16)
+
+      const deltaX = ev.clientX - drag.startPointerX
+      const deltaY = ev.clientY - drag.startPointerY
+
+      const newX = Math.max(16, Math.min(maxX, drag.startWidgetX + deltaX))
+      const newY = Math.max(16, Math.min(maxY, drag.startWidgetY + deltaY))
+
+      const updatedDrag: DragState = {
+        ...drag,
+        currentX: newX,
+        currentY: newY
+      }
+
+      draggingRef.current = updatedDrag
+      setDraggingWidget(updatedDrag)
     }
 
-    e.stopPropagation()
-    const startX = e.clientX
-    const startY = e.clientY
-    const origX = instance.x
-    const origY = instance.y
-    const { width: wW, height: wH } = getWidgetDims(instance.size)
+    const handleWindowPointerUp = async () => {
+      const drag = draggingRef.current
+      if (!drag) return
 
-    const maxX = Math.max(16, window.innerWidth - wW - 16)
-    const maxY = Math.max(16, window.innerHeight - 48 - wH - 16)
+      const finalX = drag.currentX
+      const finalY = drag.currentY
+      const widgetId = drag.id
 
-    const onPointerMove = (moveEvent: PointerEvent) => {
-      const deltaX = moveEvent.clientX - startX
-      const deltaY = moveEvent.clientY - startY
+      draggingRef.current = null
+      setDraggingWidget(null)
 
-      const newX = Math.max(16, Math.min(maxX, origX + deltaX))
-      const newY = Math.max(16, Math.min(maxY, origY + deltaY))
-
-      setWidgets((prev) =>
-        prev.map((w) => (w.id === instance.id ? { ...w, x: newX, y: newY } : w))
-      )
-    }
-
-    const onPointerUp = async (upEvent: PointerEvent) => {
-      document.removeEventListener('pointermove', onPointerMove)
-      document.removeEventListener('pointerup', onPointerUp)
-
-      const deltaX = upEvent.clientX - startX
-      const deltaY = upEvent.clientY - startY
-      const finalX = Math.max(16, Math.min(maxX, origX + deltaX))
-      const finalY = Math.max(16, Math.min(maxY, origY + deltaY))
-
+      // Persist ONLY upon drag release
       const current = settings.get('desktop.widgets') || []
-      const next = current.map((w) => (w.id === instance.id ? { ...w, x: finalX, y: finalY } : w))
+      const next = current.map((w) => (w.id === widgetId ? { ...w, x: finalX, y: finalY } : w))
       setWidgets(next)
       await settings.set('desktop.widgets', next)
     }
 
-    document.addEventListener('pointermove', onPointerMove)
-    document.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointermove', handleWindowPointerMove)
+    window.addEventListener('pointerup', handleWindowPointerUp)
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove)
+      window.removeEventListener('pointerup', handleWindowPointerUp)
+    }
+  }, [])
+
+  // Pointer down on widget card
+  const handlePointerDown = (widget: DesktopWidget, e: React.PointerEvent) => {
+    // Only primary button
+    if (e.button !== 0) return
+
+    // Ignore clicks on menu or interactive elements
+    const target = e.target as HTMLElement
+    if (target.closest('.widget-action-btn, [data-widget-menu], textarea, input, button, select, a, [data-no-drag]')) {
+      return
+    }
+
+    e.stopPropagation()
+
+    const startPointerX = e.clientX
+    const startPointerY = e.clientY
+    const startWidgetX = widget.x
+    const startWidgetY = widget.y
+
+    const dragData: DragState = {
+      id: widget.id,
+      startPointerX,
+      startPointerY,
+      startWidgetX,
+      startWidgetY,
+      currentX: widget.x,
+      currentY: widget.y
+    }
+
+    draggingRef.current = dragData
+    setDraggingWidget(dragData)
   }
 
+  // Instant Resize
   const handleResize = async (instanceId: string, newSize: 'small' | 'medium' | 'large') => {
+    setContextMenu(null)
     const current = settings.get('desktop.widgets') || []
     const next = current.map((w) => (w.id === instanceId ? { ...w, size: newSize } : w))
-    applyAndSaveWidgets(next)
+    setWidgets(next)
+    await settings.set('desktop.widgets', next)
   }
 
+  // Instant Remove
   const handleRemove = async (instanceId: string) => {
+    setContextMenu(null)
     const current = settings.get('desktop.widgets') || []
     const next = current.filter((w) => w.id !== instanceId)
     setWidgets(next)
@@ -257,10 +302,10 @@ export const WidgetsHost: React.FC = () => {
       key: `size-${s}`,
       label:
         s === 'small'
-          ? 'Pequeño (160x160)'
+          ? 'Pequeño (160×160)'
           : s === 'medium'
-          ? 'Mediano (340x160)'
-          : 'Grande (340x340)',
+          ? 'Mediano (340×160)'
+          : 'Grande (340×340)',
       disabled: instance.size === s,
       action: () => handleResize(instance.id, s)
     }))
@@ -274,7 +319,7 @@ export const WidgetsHost: React.FC = () => {
       'separator',
       {
         key: 'remove',
-        label: 'Quitar widget',
+        label: 'Quitar',
         destructive: true,
         action: () => handleRemove(instance.id)
       }
@@ -294,21 +339,25 @@ export const WidgetsHost: React.FC = () => {
         const reg = getWidget(widgetInstance.widgetId)
         if (!reg) return null
 
+        const isDragging = draggingWidget?.id === widgetInstance.id
+        const currentPosX = isDragging ? draggingWidget.currentX : widgetInstance.x
+        const currentPosY = isDragging ? draggingWidget.currentY : widgetInstance.y
         const { width, height } = getWidgetDims(widgetInstance.size)
         const isHovered = hoveredId === widgetInstance.id
+        const isMenuOpen = contextMenu?.instanceId === widgetInstance.id
         const WidgetComponent = reg.component
 
         return (
           <div
             key={widgetInstance.id}
             className="widget-card"
-            onPointerDown={(e) => handleStartDrag(widgetInstance, e)}
+            onPointerDown={(e) => handlePointerDown(widgetInstance, e)}
             onMouseEnter={() => setHoveredId(widgetInstance.id)}
             onMouseLeave={() => setHoveredId(null)}
             style={{
               position: 'absolute',
-              left: `${widgetInstance.x}px`,
-              top: `${widgetInstance.y}px`,
+              left: `${currentPosX}px`,
+              top: `${currentPosY}px`,
               width: `${width}px`,
               height: `${height}px`,
               backgroundColor: 'var(--material-acrylic)',
@@ -316,28 +365,31 @@ export const WidgetsHost: React.FC = () => {
               WebkitBackdropFilter: 'var(--backdrop-filter-acrylic)',
               borderRadius: 'var(--radius-lg)',
               border: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--shadow-md)',
+              boxShadow: isDragging ? 'var(--shadow-xl)' : 'var(--shadow-md)',
               pointerEvents: 'auto',
-              cursor: 'grab',
+              cursor: isDragging ? 'grabbing' : 'grab',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
               boxSizing: 'border-box',
-              transition: 'box-shadow var(--duration-fast) var(--ease-fluent)'
+              zIndex: isDragging ? 100 : isMenuOpen ? 50 : 5,
+              transition: isDragging ? 'none' : 'box-shadow var(--duration-fast) var(--ease-fluent)',
+              userSelect: 'none'
             }}
           >
-            {/* Widget "..." action button on hover */}
-            {isHovered && (
+            {/* Widget "..." action button on hover or when its menu is open */}
+            {(isHovered || isMenuOpen) && (
               <button
                 type="button"
                 className="widget-action-btn"
+                data-widget-menu="true"
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation()
                   const rect = e.currentTarget.getBoundingClientRect()
                   setContextMenu({
                     x: rect.right,
                     y: rect.bottom,
-                    widgetId: widgetInstance.widgetId,
                     instanceId: widgetInstance.id
                   })
                 }}
@@ -350,6 +402,7 @@ export const WidgetsHost: React.FC = () => {
                   borderRadius: 'var(--radius-full)',
                   border: '1px solid var(--border-subtle)',
                   backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-primary)',
                   boxShadow: 'var(--shadow-sm)',
                   cursor: 'pointer',
                   display: 'flex',
@@ -364,7 +417,7 @@ export const WidgetsHost: React.FC = () => {
               </button>
             )}
 
-            {/* Render Widget */}
+            {/* Render Widget Component */}
             <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
               <WidgetErrorBoundary
                 widgetId={widgetInstance.widgetId}
@@ -401,14 +454,16 @@ export const WidgetsHost: React.FC = () => {
       })}
 
       {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          items={getContextMenuEntries(
-            widgets.find((w) => w.id === contextMenu.instanceId) || ({} as DesktopWidget)
-          )}
-          onClose={() => setContextMenu(null)}
-        />
+        <div data-widget-menu="true" style={{ pointerEvents: 'auto' }}>
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            items={getContextMenuEntries(
+              widgets.find((w) => w.id === contextMenu.instanceId) || ({} as DesktopWidget)
+            )}
+            onClose={() => setContextMenu(null)}
+          />
+        </div>
       )}
     </div>
   )

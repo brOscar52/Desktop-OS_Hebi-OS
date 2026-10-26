@@ -532,7 +532,7 @@ export default function VideosApp(): JSX.Element {
                   onClick={() => setShowPlaylist(false)}
                 />
               </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 6px 36px 6px' }}>
                 {folderVideos.map((vid, idx) => {
                   const isCurrent = idx === currentIndex
                   return (

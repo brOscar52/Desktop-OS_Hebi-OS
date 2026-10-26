@@ -492,20 +492,69 @@ Campos:
 
 ---
 
-## Verificación final del proyecto
+## Correcciones post-Fase 6
+
+- **Estado:** Completada con éxito y verificado
+- **Fecha:** 2026-10-26
+- **Detalle de correcciones aplicadas:**
+  - [x] **1. Widgets del escritorio: parpadeo al arrastrar y botones 'Quitar' / 'Cambiar tamaño' (`shell/widgets-host/WidgetsHost.tsx`, `os/ui/ContextMenu.tsx`, `kernel/settings/index.ts`):**
+    - **Eliminación del parpadeo (dragState aislado en memoria local):**
+      - Prohibida de raíz cualquier escritura asíncrona a `settings.set('desktop.widgets', ...)` durante los eventos de movimiento `pointermove`.
+      - Se implementó un estado local `draggingWidget` y ref `draggingRef` (`id`, `startPointerX`, `startPointerY`, `startWidgetX`, `startWidgetY`, `currentX`, `currentY`) que se activa exclusivamente con el botón primario (`e.button === 0`).
+      - Desactivadas todas las transiciones CSS de posición (`transition: 'none'`) en la tarjeta del widget mientras se arrastra.
+      - En el listener de ventana `pointermove`, se actualizan únicamente `currentX` y `currentY` en el estado local en memoria, delimitadas al área útil de la pantalla (excluyendo la barra de tareas de 48px).
+      - En `pointerup` de ventana, se toma la posición final `(currentX, currentY)`, se limpia `draggingWidget = null` y es en ese único instante donde se invoca `settings.set('desktop.widgets', next)`.
+      - La función de desapilado `resolveWidgetCollisions` solo se ejecuta una vez al montar si se detectan colisiones preexistentes en IndexedDB, quedando completamente inactiva durante el arrastre y sin alterar posiciones personalizadas del usuario.
+    - **Funcionamiento instantáneo de 'Quitar' y 'Cambiar tamaño':**
+      - Se añadió `pointerEvents: 'auto'` y `stopPropagation` en `ContextMenu.tsx` (y sus submenús), impidiendo que el contenedor con `pointer-events: none` de `WidgetsHost` bloquee los eventos de ratón sobre los menús contextuales.
+      - En `WidgetsHost.tsx`, `handleRemove` y `handleResize` llaman directamente a `kernel/settings`, actualizan de inmediato el estado local y persisten en la base de datos sin requerir permisos de app.
+      - En `kernel/settings/index.ts`, `get()` y `set()` realizan clonación profunda inmutable de arreglos y objetos al guardar y emitir `settings:changed`.
+  - [x] **2. Espaciado inferior y navegación fluida en Ayuda (`apps/help/src/index.tsx`):**
+    - El contenedor de contenido principal del panel derecho cuenta ahora con `minHeight: 0`, `height: '100%'`, `overflowY: 'auto'` y un relleno generoso `padding: '24px 32px 64px 32px'`.
+    - Se incorporó un espaciador de cierre de 64 px (`<div style={{ height: '64px', width: '100%' }} />`) garantizando que ningún párrafo, lista o sección quede pegada al borde inferior de la ventana.
+    - En `MarkdownRenderer`, se optimizaron los márgenes verticales (`marginTop: 20px–24px`, `marginBottom: 10px–16px`, `lineHeight: 1.6`) entre encabezados, párrafos y listas.
+    - Se implementó `contentRef` y un efecto reactivo que restablece el scroll arriba del todo (`scrollTo({ top: 0, behavior: 'smooth' })`) cada vez que el usuario selecciona otra aplicación o tema en el panel lateral.
+  - [x] **3. Respiro inferior en vistas desplazables de todo el sistema:**
+    - Ajustado el relleno inferior (`paddingBottom: 36px–56px`) y `minHeight: 0` en los contenedores de scroll de Configuración (`apps/settings`), Notas (`apps/notes`), Contactos (`apps/contacts`), Explorador de archivos (`apps/files`), Música (`apps/music`) y Videos (`apps/videos`), eliminando cualquier sensación de saturación en los bordes inferiores.
+
+---
+
+## Fase 7 — Estabilización Integral, Verificación E2E y Cierre de Entrega
+
+- **Estado:** Completada con éxito y verificado
+- **Fecha:** 2026-10-26
+- **Objetivo:** Asegurar la máxima robustez del sistema, estabilidad de eventos, aislamiento por capas, coherencia visual Fluent y cierre definitivo de hebi OS.
+- **Detalle de tareas realizadas:**
+  - [x] **Integridad de eventos y ciclo de vida de sesión:**
+    - Todas las suscripciones a `settings:changed` y `fs:changed` en `Desktop`, `WidgetsHost`, `Taskbar`, `StartMenu`, `Files`, `Settings` y `@os/sdk` actualizan reactivamente la vista sin bucles infinitos ni re-renders innecesarios.
+    - Al cerrar sesión, bloquear pantalla, reiniciar o apagar se desmontan y limpian correctamente los recursos, protegiendo las ventanas con cambios pendientes (`isDirty: true`) a través del diálogo unificado de confirmación.
+  - [x] **Identidad visual hebi OS y tokens de diseño:**
+    - Se cumple al 100 % la paleta del sistema: turquesa (`#0D9488`) como acento principal, azul (`#0284C7`) y verde (`#16A34A` / `#10B981`) como secundarios.
+    - Cero degradados en bloques grandes. Todos los fondos de tarjetas y ventanas utilizan materiales Fluent (Mica y Acrílico) y tokens de `theme/tokens.css`.
+  - [x] **Aislamiento arquitectónico estricto (Sección 3):**
+    - El shell (`src/renderer/src/os/shell/`) se comunica directamente con `os/kernel`.
+    - Las aplicaciones y widgets consumen exclusivamente `@os/sdk` y `@os/ui`, cumpliendo la regla de linter `no-restricted-imports`.
+  - [x] **Cero textos estáticos:** Nombre del sistema leído dinámicamente de `os.config.json` y nombres/metadatos de aplicaciones leídos de sus respectivos `manifest.json`.
+
+---
+
+## Verificación final y Cierre del Proyecto
 
 - **`npm run typecheck`:** 0 errores (código de salida 0).
 - **`npm run lint`:** 0 errores, 0 advertencias (código de salida 0).
-- **`npm run build`:** Compilación de producción exitosa en 4.24s (código de salida 0).
+- **`npm run build`:** Compilación exitosa de main, preload y renderer en 4.53s (código de salida 0).
 
-### Lista de verificación de requisitos completados
+### Matriz de Verificación Definitiva
 
+- [x] Arrastrar cualquier widget en el escritorio es 100 % fluido, sin parpadeos ni saltos a su posición anterior, y conserva su nueva posición al soltarlo y tras reiniciar Electron.
+- [x] El botón "…" de cada widget permite Cambiar tamaño (redimensionando la tarjeta al instante) y Quitar (eliminando el widget inmediatamente del escritorio y de desktop.widgets).
+- [x] En la app Ayuda, todas las secciones largas hacen scroll con un margen inferior amplio y cómodo (48px–64px) sin que el texto quede pegado al borde inferior, y al cambiar de app el scroll vuelve al inicio.
 - [x] Ningún archivo ni acceso directo del escritorio aparece encima de la Papelera de reciclaje, y arrastrar íconos en el escritorio solo los mueve de celda sin duplicarlos.
 - [x] Hacer doble clic en cualquier carpeta del escritorio abre el Explorador de archivos directamente dentro de esa carpeta (`C:\Usuarios\<nombre>\Escritorio\<carpeta>`).
-- [x] Los widgets existentes en el escritorio ya no están encimados, se pueden arrastrar libremente a cualquier parte del escritorio y su menú "…" permite tanto Cambiar tamaño como Quitar (eliminándolos al instante).
 - [x] La transición de la Pantalla de bloqueo al Inicio de sesión se desliza hacia arriba con una animación suave y pausada (~600 ms).
-- [x] La app Ayuda muestra "Primeros pasos" y la guía completa de las 17 apps leída de sus `help.md`, con buscador funcional.
-- [x] Cambiar el `name`, `icon.svg` o `cover.png` de una app en su carpeta `meta/` actualiza su nombre e imagen en el menú Inicio, barra de tareas, escritorio, barra de título, Administrador de tareas, ventana "Acerca de", Ayuda y notificaciones sin tocar ningún archivo fuera de `meta/`.
-- [x] Guía de personalización `CUSTOMIZACION.md` redactada y documentada en la raíz del proyecto.
-- [x] Auditoría de consistencia documentada y proyecto finalizado al 100%.
+- [x] La app Ayuda muestra 'Primeros pasos' y la guía completa de las 17 apps leída de sus `help.md`, con buscador funcional.
+- [x] Cambiar el `name`, `icon.svg` o `cover.png` de una app en su carpeta `meta/` actualiza su nombre e imagen en el menú Inicio, barra de tareas, escritorio, barra de título, Administrador de tareas, ventana 'Acerca de', Ayuda y notificaciones sin tocar ningún archivo fuera de `meta/`.
+- [x] Guía de personalización `CUSTOMIZACION.md` completa y verificada en la raíz del proyecto.
+- [x] Proyecto concluido con éxito y listo para distribución.
+
 

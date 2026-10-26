@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useOS, type AppDetail } from '@os/sdk'
 import { TextField, AppIcon, EmptyState, Button } from '@os/ui'
 
@@ -63,17 +63,17 @@ function MarkdownRenderer({ content }: { content: string }): JSX.Element {
     if (listItems.length === 0) return null
     const isOrdered = listType === 'ol'
     const rendered = isOrdered ? (
-      <ol key={`list-${key}`} style={{ margin: '8px 0 16px 20px', padding: 0 }}>
+      <ol key={`list-${key}`} style={{ margin: '10px 0 16px 24px', padding: 0 }}>
         {listItems.map((item, idx) => (
-          <li key={idx} style={{ marginBottom: '6px', lineHeight: '1.6', fontSize: '13px', color: 'var(--text-secondary)' }}>
+          <li key={idx} style={{ marginBottom: '8px', lineHeight: '1.6', fontSize: '13px', color: 'var(--text-secondary)' }}>
             {parseInlineMarkdown(item)}
           </li>
         ))}
       </ol>
     ) : (
-      <ul key={`list-${key}`} style={{ margin: '8px 0 16px 20px', padding: 0 }}>
+      <ul key={`list-${key}`} style={{ margin: '10px 0 16px 24px', padding: 0 }}>
         {listItems.map((item, idx) => (
-          <li key={idx} style={{ marginBottom: '6px', lineHeight: '1.6', fontSize: '13px', color: 'var(--text-secondary)' }}>
+          <li key={idx} style={{ marginBottom: '8px', lineHeight: '1.6', fontSize: '13px', color: 'var(--text-secondary)' }}>
             {parseInlineMarkdown(item)}
           </li>
         ))}
@@ -100,8 +100,9 @@ function MarkdownRenderer({ content }: { content: string }): JSX.Element {
           style={{
             fontSize: '15px',
             fontWeight: 600,
-            marginTop: '18px',
-            marginBottom: '8px',
+            marginTop: '20px',
+            marginBottom: '10px',
+            lineHeight: '1.4',
             color: 'var(--text-primary)'
           }}
         >
@@ -116,11 +117,12 @@ function MarkdownRenderer({ content }: { content: string }): JSX.Element {
           style={{
             fontSize: '18px',
             fontWeight: 600,
-            marginTop: '22px',
-            marginBottom: '10px',
+            marginTop: '24px',
+            marginBottom: '12px',
+            lineHeight: '1.4',
             color: 'var(--text-primary)',
             borderBottom: '1px solid var(--border-subtle)',
-            paddingBottom: '4px'
+            paddingBottom: '6px'
           }}
         >
           {parseInlineMarkdown(trimmed.slice(3))}
@@ -134,8 +136,9 @@ function MarkdownRenderer({ content }: { content: string }): JSX.Element {
           style={{
             fontSize: '24px',
             fontWeight: 700,
-            marginTop: '6px',
-            marginBottom: '12px',
+            marginTop: '12px',
+            marginBottom: '16px',
+            lineHeight: '1.3',
             color: 'var(--text-primary)'
           }}
         >
@@ -157,7 +160,7 @@ function MarkdownRenderer({ content }: { content: string }): JSX.Element {
             fontSize: '13px',
             lineHeight: '1.6',
             color: 'var(--text-secondary)',
-            marginBottom: '12px'
+            marginBottom: '16px'
           }}
         >
           {parseInlineMarkdown(trimmed)}
@@ -178,6 +181,12 @@ export default function HelpApp(): JSX.Element {
 
   const [selectedSection, setSelectedSection] = useState<string>('getting-started')
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to top whenever the selected section or app changes
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [selectedSection])
 
   // Load registered apps
   const apps = useMemo(() => {
@@ -362,15 +371,18 @@ export default function HelpApp(): JSX.Element {
 
       {/* Main Content Area */}
       <div
+        ref={contentRef}
         style={{
           flex: 1,
+          minHeight: 0,
           height: '100%',
           overflowY: 'auto',
-          padding: '32px 48px',
-          maxWidth: '860px'
+          padding: '24px 32px 64px 32px',
+          boxSizing: 'border-box'
         }}
       >
-        {selectedSection === 'getting-started' ? (
+        <div style={{ maxWidth: '860px', width: '100%' }}>
+          {selectedSection === 'getting-started' ? (
           <div>
             {/* System Banner / Cover */}
             <div
@@ -638,7 +650,11 @@ export default function HelpApp(): JSX.Element {
             description="Elige una sección de la lista lateral para visualizar su guía."
           />
         )}
+
+        {/* Generous bottom spacer to prevent text being glued to the bottom */}
+        <div style={{ height: '64px', width: '100%' }} />
       </div>
+    </div>
     </div>
   )
 }

@@ -37,12 +37,20 @@ export class SettingsService {
   }
 
   get<K extends SettingKey>(key: K): SettingValue<K> {
-    return this.cache[key]
+    const val = this.cache[key]
+    if (Array.isArray(val)) return [...val] as SettingValue<K>
+    if (typeof val === 'object' && val !== null) return { ...val } as SettingValue<K>
+    return val
   }
 
   async set<K extends SettingKey>(key: K, value: SettingValue<K>): Promise<void> {
-    this.cache[key] = value
-    await storage.setSetting(key, value)
+    const cloned = Array.isArray(value)
+      ? ([...value] as SettingValue<K>)
+      : typeof value === 'object' && value !== null
+        ? ({ ...value } as SettingValue<K>)
+        : value
+    this.cache[key] = cloned
+    await storage.setSetting(key, cloned)
 
     if (key === 'sound.volume') sound.setVolume(value as number)
     if (key === 'sound.muted') sound.setMuted(value as boolean)

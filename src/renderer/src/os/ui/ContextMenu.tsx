@@ -87,8 +87,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
         display: 'flex',
         flexDirection: 'column',
         userSelect: 'none',
-        fontFamily: 'var(--font-family-base)'
+        fontFamily: 'var(--font-family-base)',
+        pointerEvents: 'auto'
       }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
     >

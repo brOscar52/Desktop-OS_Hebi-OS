@@ -361,7 +361,7 @@ export default function ContactsApp(): JSX.Element {
         </div>
 
         {/* Grouped List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 6px 36px 6px' }}>
           {Object.keys(groupedContacts).length === 0 ? (
             <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '12px' }}>
               {searchQuery ? 'Sin coincidencias' : 'No hay contactos guardados'}
@@ -462,7 +462,7 @@ export default function ContactsApp(): JSX.Element {
       </div>
 
       {/* Right Pane: Contact Detail View OR Edit Form */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', paddingBottom: '48px' }}>
         {isEditing ? (
           /* ================= EDIT / CREATE FORM ================= */
           <form onSubmit={handleSaveContact} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '520px' }}>

@@ -218,7 +218,7 @@ export default function NotesApp(): JSX.Element {
         </div>
 
         {/* Notes Items List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 6px 36px 6px' }}>
           {filteredNotes.pinned.length === 0 && filteredNotes.unpinned.length === 0 ? (
             <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '12px' }}>
               {searchQuery ? 'No se encontraron notas' : 'No hay notas aún'}
