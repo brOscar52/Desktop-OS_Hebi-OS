@@ -1,9 +1,73 @@
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, Suspense, Component, ReactNode, ErrorInfo } from 'react'
 import { settings, DesktopWidget } from '../../kernel/settings'
 import { getWidget } from '../../kernel/apps/registry'
 import { ContextMenu, ContextMenuEntry } from '../../ui/ContextMenu'
 import { DotLoader } from '../common/DotLoader'
 import { WindowContext } from '../../sdk/context'
+
+interface WidgetErrorBoundaryProps {
+  widgetId: string
+  onRemove: () => void
+  children: ReactNode
+}
+
+interface WidgetErrorBoundaryState {
+  hasError: boolean
+}
+
+class WidgetErrorBoundary extends Component<WidgetErrorBoundaryProps, WidgetErrorBoundaryState> {
+  constructor(props: WidgetErrorBoundaryProps) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(): WidgetErrorBoundaryState {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(`[WidgetErrorBoundary] Error en widget ${this.props.widgetId}:`, error, info)
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            padding: '12px',
+            fontSize: '11px',
+            color: 'var(--text-secondary)',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            justifyContent: 'center',
+            alignItems: 'center',
+            textAlign: 'center',
+            gap: '8px'
+          }}
+        >
+          <span>Error en widget</span>
+          <button
+            type="button"
+            onClick={this.props.onRemove}
+            style={{
+              padding: '4px 8px',
+              fontSize: '11px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+          >
+            Quitar widget
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export const WidgetsHost: React.FC = () => {
   const [widgets, setWidgets] = useState<DesktopWidget[]>(settings.get('desktop.widgets') || [])
@@ -197,23 +261,28 @@ export const WidgetsHost: React.FC = () => {
 
             {/* Render Widget */}
             <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-              <Suspense
-                fallback={
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <DotLoader size={4} color="var(--accent-color)" />
-                  </div>
-                }
+              <WidgetErrorBoundary
+                widgetId={widgetInstance.widgetId}
+                onRemove={() => handleRemove(widgetInstance.id)}
               >
-                <WindowContext.Provider
-                  value={{
-                    windowId: widgetInstance.id,
-                    appId: widgetInstance.widgetId,
-                    instanceId: widgetInstance.id
-                  }}
+                <Suspense
+                  fallback={
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <DotLoader size={4} color="var(--accent-color)" />
+                    </div>
+                  }
                 >
-                  <WidgetComponent />
-                </WindowContext.Provider>
-              </Suspense>
+                  <WindowContext.Provider
+                    value={{
+                      windowId: widgetInstance.id,
+                      appId: widgetInstance.widgetId,
+                      instanceId: widgetInstance.id
+                    }}
+                  >
+                    <WidgetComponent />
+                  </WindowContext.Provider>
+                </Suspense>
+              </WidgetErrorBoundary>
             </div>
           </div>
         )

@@ -17,13 +17,13 @@ export default function CalendarWidget(): JSX.Element {
   const [currentDate] = useState<Date>(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
 
+  const today = useMemo(() => new Date(), [])
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
 
   const todayStr = useMemo(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }, [])
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  }, [today])
 
   // Load events from calendar storage
   const loadEvents = useCallback(async () => {

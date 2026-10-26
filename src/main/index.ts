@@ -43,6 +43,13 @@ function createWindow(): void {
     mainWindow = null
   })
 
+  // Forward console errors and warnings to the terminal
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 2) {
+      console.log(`[Renderer ${level === 3 ? 'ERROR' : 'WARN'}] ${message} (${sourceId}:${line})`)
+    }
+  })
+
   // Load renderer
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
