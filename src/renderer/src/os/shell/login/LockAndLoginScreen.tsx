@@ -126,7 +126,7 @@ export const LockAndLoginScreen: React.FC = () => {
           transform: isLoginView ? 'translateY(-100%)' : 'translateY(0)',
           opacity: isLoginView ? 0 : 1,
           pointerEvents: isLoginView ? 'none' : 'auto',
-          transition: 'transform 240ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease',
+          transition: 'transform 600ms cubic-bezier(0.22, 1, 0.36, 1), opacity 550ms ease',
           cursor: isLoginView ? 'default' : 'pointer',
           zIndex: 20
         }}
@@ -164,14 +164,15 @@ export const LockAndLoginScreen: React.FC = () => {
         style={{
           position: 'absolute',
           inset: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.45)',
-          backdropFilter: 'blur(40px) saturate(130%)',
+          backgroundColor: isLoginView ? 'rgba(15, 23, 42, 0.45)' : 'transparent',
+          backdropFilter: isLoginView ? 'blur(24px)' : 'blur(0px)',
+          WebkitBackdropFilter: isLoginView ? 'blur(24px)' : 'blur(0px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          visibility: isLoginView ? 'visible' : 'hidden',
           pointerEvents: isLoginView ? 'auto' : 'none',
+          transition: 'backdrop-filter 500ms ease 100ms, -webkit-backdrop-filter 500ms ease 100ms, background-color 500ms ease 100ms',
           zIndex: 5
         }}
       >
@@ -182,7 +183,10 @@ export const LockAndLoginScreen: React.FC = () => {
             alignItems: 'center',
             gap: '18px',
             width: '100%',
-            maxWidth: '340px'
+            maxWidth: '340px',
+            opacity: isLoginView ? 1 : 0,
+            transform: isLoginView ? 'translateY(0)' : 'translateY(16px)',
+            transition: 'opacity 450ms ease 100ms, transform 450ms cubic-bezier(0.22, 1, 0.36, 1) 100ms'
           }}
         >
           {/* User Avatar */}

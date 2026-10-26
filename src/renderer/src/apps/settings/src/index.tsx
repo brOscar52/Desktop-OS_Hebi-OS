@@ -78,7 +78,7 @@ export default function SettingsApp(): JSX.Element {
           message: '¿Deseas establecer esta imagen como nuevo fondo de pantalla del escritorio?',
           confirmLabel: 'Establecer como fondo'
         })
-        .then((confirmed) => {
+        .then((confirmed: boolean) => {
           if (confirmed) {
             os.settings.set('appearance.wallpaper', { type: 'file', nodeId })
           }

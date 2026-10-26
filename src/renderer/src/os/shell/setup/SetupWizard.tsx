@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import logoSvg from '../../../system/boot/logo.svg'
+import osConfig from '../../../system/os.config.json'
 import avatarDefault from '../../../system/icons/avatar-default.svg'
 import { useSession } from '../../kernel/session'
 import { fs } from '../../kernel/fs'
@@ -134,9 +135,9 @@ export const SetupWizard: React.FC = () => {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img src={logoSvg} alt="hebi OS" style={{ width: '28px', height: '28px' }} />
+            <img src={logoSvg} alt={osConfig.name} style={{ width: '28px', height: '28px' }} />
             <span style={{ fontSize: '15px', fontWeight: 600, color: '#2DD4BF' }}>
-              hebi OS
+              {osConfig.name}
             </span>
           </div>
           <span style={{ fontSize: '13px', color: '#94A3B8' }}>
@@ -151,7 +152,7 @@ export const SetupWizard: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px', margin: 'auto 0' }}>
               <img src={logoSvg} alt="Logo" style={{ width: '72px', height: '72px' }} />
               <h2 style={{ fontSize: '26px', margin: 0, fontWeight: 700 }}>
-                Bienvenido a hebi OS
+                Bienvenido a {osConfig.name}
               </h2>
               <p style={{ margin: 0, color: '#94A3B8', maxWidth: '460px', lineHeight: 1.6, fontSize: '15px' }}>
                 Vamos a preparar tu entorno de escritorio en solo unos pasos. Configura tu cuenta para empezar a usar el sistema.

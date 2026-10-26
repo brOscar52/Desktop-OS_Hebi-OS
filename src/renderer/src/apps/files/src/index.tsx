@@ -31,11 +31,10 @@ export default function FilesApp(): JSX.Element {
 
   // Current navigation state
   const [currentPath, setCurrentPath] = useState<string>(() => {
-    if (launchArgs.filePath) {
+    const raw = launchArgs.filePath || (launchArgs.path as string)
+    if (raw && typeof raw === 'string') {
       try {
-        const resolved = os.fs.fromDisplayPath(launchArgs.filePath)
-        const idx = resolved.lastIndexOf('/')
-        return idx > 0 ? resolved.slice(0, idx) : '/'
+        return os.fs.fromDisplayPath(raw)
       } catch {
         return homeDir
       }
@@ -90,31 +89,62 @@ export default function FilesApp(): JSX.Element {
     }
   }, [isTrashView, loadTrash, watchedFolderNodes])
 
-  // Handle open file from outside (singleInstance or file opened)
-  useOpenFileHandler((path: string) => {
-    setIsTrashView(false)
-    try {
-      const resolved = os.fs.fromDisplayPath(path)
-      const idx = resolved.lastIndexOf('/')
-      const folder = idx > 0 ? resolved.slice(0, idx) : '/'
-      navigateTo(folder)
-    } catch {
-      navigateTo(homeDir)
-    }
-  })
-
-  // Initial selection if launchArgs has filePath
-  useEffect(() => {
-    if (launchArgs.filePath) {
-      const fileName = launchArgs.filePath.split('/').pop()
-      if (fileName) {
-        const found = watchedFolderNodes.find((n) => n.name === fileName)
-        if (found) {
-          setSelectedIds(new Set([found.id]))
+  // Open target path (folder or file)
+  const openTarget = useCallback(
+    async (target: string) => {
+      try {
+        const resolved = os.fs.fromDisplayPath(target)
+        const node = await os.fs.stat(resolved)
+        if (node.kind === 'folder') {
+          setIsTrashView(false)
+          setCurrentPath(resolved)
+          setSelectedIds(new Set())
+          setHistory([resolved])
+          setHistoryIndex(0)
+        } else {
+          const idx = resolved.lastIndexOf('/')
+          const folder = idx > 0 ? resolved.slice(0, idx) : '/'
+          setIsTrashView(false)
+          setCurrentPath(folder)
+          setSelectedIds(new Set([node.id]))
+          setHistory([folder])
+          setHistoryIndex(0)
+        }
+      } catch {
+        try {
+          const resolved = os.fs.fromDisplayPath(target)
+          setIsTrashView(false)
+          setCurrentPath(resolved)
+          setSelectedIds(new Set())
+          setHistory([resolved])
+          setHistoryIndex(0)
+        } catch {
+          setIsTrashView(false)
+          setCurrentPath(homeDir)
         }
       }
+    },
+    [os.fs, homeDir]
+  )
+
+  // React to launchArgs changes
+  useEffect(() => {
+    if (launchArgs.view === 'trash') {
+      setIsTrashView(true)
+      return
     }
-  }, [launchArgs.filePath, watchedFolderNodes])
+    const raw = launchArgs.filePath || (launchArgs.path as string)
+    if (raw && typeof raw === 'string') {
+      openTarget(raw)
+    }
+  }, [launchArgs.view, launchArgs.filePath, launchArgs.path, openTarget])
+
+  // Handle open file/folder from outside
+  useOpenFileHandler((path: string) => {
+    if (path) {
+      openTarget(path)
+    }
+  })
 
   // Update window title based on path
   useEffect(() => {
@@ -553,12 +583,40 @@ export default function FilesApp(): JSX.Element {
       }
     ]
 
-    if (node.kind === 'file' && appsForFile.length > 0) {
-      const openWithChildren: ContextMenuEntry[] = appsForFile.map((app: AppManifest) => ({
+    if (node.kind === 'file') {
+      const allAvailableApps = os.apps.list()
+      const candidateList = appsForFile.length > 0 ? appsForFile : allAvailableApps
+      const openWithChildren: ContextMenuEntry[] = candidateList.map((app: AppManifest) => ({
         key: `app-${app.id}`,
         label: app.name,
         action: () => os.apps.openFile(nodePath, app.id)
       }))
+
+      openWithChildren.push('separator')
+      openWithChildren.push({
+        key: 'set-default-app',
+        label: 'Cambiar aplicación predeterminada…',
+        action: async () => {
+          const parts = node.name.split('.')
+          const ext = parts.length > 1 ? parts.pop()?.toLowerCase() || '' : ''
+          if (!ext) return
+
+          const choice = await os.dialogs.choose({
+            title: 'Aplicación predeterminada',
+            message: `Selecciona la aplicación con la que deseas abrir siempre los archivos .${ext}:`,
+            options: candidateList.map((a: AppManifest) => ({ value: a.id, label: a.name }))
+          })
+
+          if (choice) {
+            await os.apps.setDefaultAppForExtension(ext, choice)
+            const chosenAppName = candidateList.find((a: AppManifest) => a.id === choice)?.name || choice
+            os.notify({
+              title: 'Aplicación predeterminada actualizada',
+              body: `Los archivos .${ext} ahora se abrirán con ${chosenAppName}.`
+            })
+          }
+        }
+      })
 
       menuItems.push({
         key: 'open-with',

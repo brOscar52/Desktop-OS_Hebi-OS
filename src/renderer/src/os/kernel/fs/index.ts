@@ -3,6 +3,7 @@ import { events } from '../events'
 import { sound } from '../sound'
 import { FsApi, FsNode } from './types'
 import { getMimeType } from './mime'
+import osConfig from '../../../system/os.config.json'
 import {
   normalizeInternalPath,
   validateNodeName,
@@ -684,7 +685,7 @@ export class VirtualFileSystem implements FsApi {
     await createSubfolder('Cámara', vidFolder.id)
 
     // 6. Bienvenida.txt in Documentos
-    const welcomeText = `¡Bienvenido a hebi OS!
+    const welcomeText = `¡Bienvenido a ${osConfig.name}!
 
 Este es un simulador de sistema operativo de escritorio con diseño moderno inspirado en Fluent.
 Tu sesión, archivos y personalizaciones se guardan de forma persistente.
@@ -694,7 +695,7 @@ Puedes:
 - Configurar el tema, colores y fondos de pantalla en Configuración.
 - Acceder a todas tus aplicaciones desde el menú Inicio o la barra de tareas.
 
-¡Disfruta explorando hebi OS!
+¡Disfruta explorando ${osConfig.name}!
 `
     const welcomeBlob = new Blob([welcomeText], { type: 'text/plain' })
     const welcomeBlobId = `blob-welcome-${crypto.randomUUID().slice(0, 8)}`

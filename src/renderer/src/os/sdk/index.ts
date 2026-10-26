@@ -11,17 +11,25 @@ import { media as kernelMedia } from '../kernel/media'
 import { notifications as kernelNotifications } from '../kernel/notifications'
 import { windowManager } from '../kernel/windows'
 import { dialogs } from '../kernel/dialogs'
-import { openFileWithApp, getAppsForFile } from '../kernel/apps/launcher'
+import { openFileWithApp, getAppsForFile, setDefaultAppForExtension } from '../kernel/apps/launcher'
 import { processes, type ProcessInfo } from '../kernel/processes'
 import { network as kernelNetwork } from '../kernel/network'
 import type { UserAvatar } from '../kernel/storage'
 import { useWindowContext } from './context'
+import osConfig from '@system'
 import type { AppMenu } from '../kernel/windows/types'
 import type { DialogsApi } from '../kernel/dialogs/types'
 
+export interface AppDetail {
+  id: string
+  manifest: AppManifest
+  iconUrl: string
+  coverUrl?: string
+  helpText?: string
+}
+
 export type LaunchArgs = { filePath?: string; [key: string]: unknown }
-export type { AppMenu } from '../kernel/windows/types'
-export type { DialogsApi } from '../kernel/dialogs/types'
+export type { AppMenu, DialogsApi }
 export type { ProcessInfo } from '../kernel/processes'
 export type { WifiNetwork } from '../kernel/network'
 export type { UserAvatar, UserRecord, ScheduledRecord } from '../kernel/storage'
@@ -84,7 +92,33 @@ export function useOS() {
           openFileWithApp(path, targetAppId)
         },
         getAppsForFile: (path: string): AppManifest[] => getAppsForFile(path),
-        list: (): AppManifest[] => getAllApps().map((a) => a.manifest)
+        list: (): AppManifest[] => getAllApps().map((a) => a.manifest),
+        listDetails: (): AppDetail[] =>
+          getAllApps().map((a) => ({
+            id: a.id,
+            manifest: a.manifest,
+            iconUrl: a.iconUrl,
+            coverUrl: a.coverUrl,
+            helpText: a.helpText
+          })),
+        getDetail: (id: string): AppDetail | undefined => {
+          const a = getApp(id)
+          if (!a) return undefined
+          return {
+            id: a.id,
+            manifest: a.manifest,
+            iconUrl: a.iconUrl,
+            coverUrl: a.coverUrl,
+            helpText: a.helpText
+          }
+        },
+        setDefaultAppForExtension: async (ext: string, targetAppId: string): Promise<void> => {
+          await setDefaultAppForExtension(ext, targetAppId)
+        }
+      },
+      system: {
+        name: osConfig.name,
+        version: osConfig.version
       },
       scheduler: {
         schedule: async (job: Omit<ScheduledRecord, 'id' | 'appId'>): Promise<string> =>

@@ -1,5 +1,6 @@
 import React from 'react'
 import logoSvg from '../../../system/boot/logo.svg'
+import osConfig from '../../../system/os.config.json'
 import { DotLoader } from '../common/DotLoader'
 
 export const BootScreen: React.FC = () => {
@@ -27,7 +28,7 @@ export const BootScreen: React.FC = () => {
       >
         <img
           src={logoSvg}
-          alt="hebi OS Logo"
+          alt={`${osConfig.name} Logo`}
           style={{
             width: '120px',
             height: '120px',

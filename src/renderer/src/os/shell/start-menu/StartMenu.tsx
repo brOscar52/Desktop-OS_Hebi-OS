@@ -93,12 +93,43 @@ export const StartMenu: React.FC<StartMenuProps> = ({ isOpen, onClose }) => {
 
   const handleAddToDesktop = async (appId: string) => {
     const desktopItems = settings.get('desktop.items') || []
+    if (desktopItems.some((i) => i.kind === 'app' && i.ref === appId)) {
+      return
+    }
+
+    const colWidth = 90
+    const rowHeight = 100
+    const maxRows = Math.max(1, Math.floor(((window.innerHeight || 800) - 48 - 30) / rowHeight))
+
+    let freeX = 20
+    let freeY = 20
+    let col = 0
+    let row = 0
+
+    while (col < 50) {
+      const cx = 20 + col * colWidth
+      const cy = 20 + row * rowHeight
+      const isOccupied = desktopItems.some(
+        (it) => Math.abs(it.x - cx) < colWidth / 2 && Math.abs(it.y - cy) < rowHeight / 2
+      )
+      if (!isOccupied) {
+        freeX = cx
+        freeY = cy
+        break
+      }
+      row++
+      if (row >= maxRows) {
+        row = 0
+        col++
+      }
+    }
+
     const newItem = {
-      id: `desktop-app-${appId}-${Date.now()}`,
+      id: `desktop-app-${appId}`,
       kind: 'app' as const,
       ref: appId,
-      x: 20 + ((desktopItems.length * 80) % 400),
-      y: 100 + Math.floor((desktopItems.length * 80) / 400) * 90
+      x: freeX,
+      y: freeY
     }
     await settings.set('desktop.items', [...desktopItems, newItem])
   }

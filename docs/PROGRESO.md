@@ -415,3 +415,97 @@ Campos:
   - `npm run build`: Compilación de producción exitosa en 4.62s.
   - Cumplimiento de contratos de arquitectura: cero imports no permitidos (`no-restricted-imports`).
 - **Desviaciones y contratos modificados:** Ninguna.
+
+---
+
+## Correcciones obligatorias previas a la Fase 6
+
+- **Estado:** Completada con éxito y verificado
+- **Fecha:** 2026-10-26
+- **Detalle de correcciones aplicadas:**
+  - [x] **1. Íconos del escritorio superpuestos con la Papelera y duplicados al arrastrar (`shell/desktop`, `kernel/settings`, `shell/start-menu`):**
+    - **Reserva fija de celda para Papelera:** La Papelera de reciclaje (`{ kind: 'system', ref: 'recycle-bin' }`) tiene su celda inicial reservada (0, 0 / 20, 20 px) en la retícula del escritorio.
+    - **Asignación sin colisiones a nodos de `~/Escritorio`:** Al combinar `desktop.items` con los nodos del VFS obtenidos mediante `useFsWatch('~/Escritorio')`, los archivos y carpetas que carecen de coordenadas guardadas reciben automáticamente la primera celda libre de la cuadrícula recorriendo columna por columna de arriba hacia abajo, verificando exhaustivamente que nunca se asigne una celda ya ocupada por la papelera, una app u otro archivo.
+    - **Arrastre de íconos sin duplicación:** Al arrastrar un elemento existente en el escritorio, se actualizan exclusivamente sus coordenadas `(x, y)` en `desktop.items` ajustadas a la celda libre más cercana. No se duplica el elemento ni se crea un nuevo nodo en `~/Escritorio`.
+    - **Soltar sobre la Papelera:** Si el elemento arrastrado a la papelera es un archivo/carpeta (`kind === 'node'`), se envía a `fs.trash(path)` y se limpia su entrada en `desktop.items`. Si es un acceso directo de app (`kind === 'app'`), se ignora el drop y regresa a su celda.
+    - **Prevención de duplicados en Menú Inicio:** En `StartMenu.tsx` (`handleAddToDesktop`), antes de insertar `{ kind: 'app', ref: appId }` se comprueba si ya existe en `desktop.items`; si no existe, se le asigna la primera celda libre de la cuadrícula.
+  - [x] **2. Doble clic en una carpeta del Escritorio abre la raíz/Inicio en vez de esa carpeta (`shell/desktop` y `apps/files`):**
+    - **Lanzamiento con ruta completa en `Desktop.tsx`:** Al hacer doble clic sobre un nodo de tipo carpeta (`node.kind === 'folder'`), se calcula su ruta interna completa (`${kernelFs.getHomeDir()}/Escritorio/${node.name}`) y se invoca `windowManager.open('files', { filePath: fullPath })`. Para la papelera se envía `{ view: 'trash' }`.
+    - **Navegación directa en `apps/files`:** Al montar la app o recibir un archivo/carpeta vía `launchArgs` o `useOpenFileHandler`, se verifica si la ruta objetivo es una carpeta con `os.fs.stat(resolved).kind === 'folder'`. De ser así, se inicializa el estado `currentPath` e historial directamente en esa carpeta sin recortar el segmento final ni sobrescribirlo con `~` o Inicio.
+  - [x] **3. Widgets bloqueados: no se pueden mover, se apilan encima de otros y no se pueden borrar (`shell/widgets-host` y `shell/desktop`):**
+    - **Jerarquía de capas y pointer-events:** Se desacoplaron las capas del escritorio:
+      - *Capa 1:* Fondo y captura de clics vacíos / rectángulo de selección marquesina.
+      - *Capa 2 (WidgetsHost):* `position: absolute; inset: 0; pointer-events: none;`, con `pointer-events: auto;` en cada tarjeta individual de widget.
+      - *Capa 3 (Íconos del escritorio):* `position: absolute; inset: 0; pointer-events: none;`, con `pointer-events: auto;` en cada celda de ícono.
+      - De este modo, los eventos de ratón sobre los widgets se procesan directamente sin ser interceptados por la capa de íconos ni por el rectángulo de selección.
+    - **Arrastre fluido de widgets:** Eventos `onPointerDown` / `onPointerMove` / `onPointerUp` implementados en la tarjeta del widget, ignorando automáticamente el arrastre cuando el cursor interactúa con `<input>`, `<textarea>`, `<button>` o el botón de menú "…". Al soltar, las coordenadas se ajustan dentro del área útil del escritorio y se guardan en `settings.set('desktop.widgets', ...)`.
+    - **Menú "…" funcional:** Botón visible al hacer hover en la esquina superior derecha del widget con `z-index` superior. Opciones funcionales:
+      - *Cambiar tamaño:* Pequeño (160×160), Mediano (340×160), Grande (340×340).
+      - *Quitar:* Elimina inmediatamente la instancia del widget de `desktop.widgets`.
+    - **Desapilado automático de colisiones (`resolveWidgetCollisions`):** Algoritmo que detecta colisiones entre cajas delimitadoras (márgenes de 16 px) al cargar la configuración o añadir widgets. Si dos o más widgets están en las mismas coordenadas o se solapan (incluso los preexistentes en IndexedDB), se reubican a la siguiente posición libre y se persiste el arreglo saneado en `desktop.widgets`.
+  - [x] **4. Transición demasiado rápida entre Pantalla de bloqueo e Inicio de sesión (`shell/login`):**
+    - En `LockAndLoginScreen.tsx`, el deslizamiento hacia arriba de la cortina de bloqueo se ajustó a 600 ms con curva de desaceleración suave estilo Fluent (`cubic-bezier(0.22, 1, 0.36, 1)`).
+    - El desenfoque de fondo acrílico (`backdrop-filter: blur(24px)`) y la entrada de la tarjeta de credenciales (`opacity: 0 -> 1` y `translateY(16px -> 0)`) se animan acompasadamente en 450 ms con un retardo de 100 ms para una transición elegante y pausada.
+
+---
+
+## Fase 6 — Ayuda, Personalización y Pulido final
+
+- **Estado:** Completada con éxito y verificado
+- **Fecha:** 2026-10-26
+- **Objetivo:** Implementar la aplicación de Ayuda oficial (`apps/help`), redactar la guía exhaustiva de personalización (`CUSTOMIZACION.md`), ejecutar la auditoría de consistencia de todo el sistema y realizar el cierre del proyecto con 0 errores y 0 advertencias.
+- **Detalle de tareas realizadas:**
+  - [x] **1. App de Ayuda (`apps/help`, `singleInstance: true`):**
+    - **Portada dinámica:** Muestra el nombre oficial del sistema operativo leído dinámicamente de la configuración (`os.system.name` / `os.config.json`), logotipo vectorial animado y descripción de la plataforma.
+    - **Sección "Primeros pasos":** Guía estructurada e interactiva explicando con detalle:
+      - *Escritorio y widgets:* Organización de accesos directos, selección múltiple y widgets dinámicos.
+      - *Barra de tareas y bandeja:* Gestión de ventanas abiertas, anclaje y controles de volumen/red.
+      - *Menú Inicio:* Búsqueda en tiempo real y vista alfabética A-Z.
+      - *Ventanas Fluent:* Material Mica, controles de título y menú contextual "Acerca de".
+      - *Sistema de archivos virtual:* Rutas estilo Windows (`C:\Usuarios\...`) y operaciones VFS.
+      - *Papelera de reciclaje:* Eliminación segura, restauración y vaciado permanente con sonido.
+    - **Catálogo dinámico de las 17 aplicaciones:** Generado en tiempo real desde el registro (`os.apps.listDetails()`), mostrando para cada app su `AppIcon`, portada (`cover.png` si existe), nombre, descripción, versión, autor, categoría y el contenido renderizado de su archivo `meta/help.md`.
+    - **Parser propio de Markdown seguro:** Implementado desde cero sin librerías externas ni `dangerouslySetInnerHTML`:
+      - Encabezados `#`, `##`, `###`.
+      - Párrafos de texto continuo.
+      - Listas con viñetas (`-`, `*`) y listas numeradas (`1.`).
+      - Formato en línea: Negrita (`**texto**`), Cursiva (`*texto*`) y Código en línea (`` `código` ``).
+    - **Buscador en tiempo real:** Filtra simultáneamente los temas de "Primeros pasos" y las 17 secciones de aplicaciones por nombre, descripción, categoría o contenido de su manual `help.md`.
+    - **Archivos `meta/help.md` completos para las 17 aplicaciones:**
+      - Redactados en español detallado, claro y profesional: `files`, `text-editor`, `terminal`, `settings`, `calculator`, `task-manager`, `calendar`, `clock`, `notes`, `contacts`, `image-viewer`, `music`, `videos`, `paint`, `voice-recorder`, `camera` y `help`.
+  - [x] **2. Guía de personalización (`CUSTOMIZACION.md` en la raíz del proyecto):**
+    - Redacción exhaustiva y pedagógica explicando:
+      - Modificación de metadatos de aplicaciones en `src/renderer/src/apps/<id>/meta/` (`manifest.json`, `icon.svg`, `cover.png`, `theme.css`, `help.md`) sin requerir cambios en código TypeScript.
+      - Personalización global del sistema en `src/renderer/src/system/`: nombre y arranque en `os.config.json`, logotipo en `boot/logo.svg`, botón de inicio en `icons/start.svg`, fondos en `wallpapers/`, sonidos en `sounds/`, íconos en `icons/` y tokens en `theme/tokens.css` (respetando la paleta turquesa `#0D9488` principal, azul y verde secundarios, y cero degradados en bloques grandes).
+      - Creación de nuevas aplicaciones y widgets duplicando plantillas base, aprovechando el auto-descubrimiento con `import.meta.glob`.
+      - Tabla de especificaciones de formatos y tamaños recomendados para íconos, portadas, fondos y audio.
+      - Matriz de ciclo de aplicación: cambios en caliente (HMR / recarga) vs recompilación con `npm run build`.
+  - [x] **3. Auditoría de consistencia y Pulido final:**
+    - **Tokens y componentes `@os/ui`:** Todas las apps y widgets consumen exclusivamente componentes de `@os/ui` y variables de `tokens.css`. No existen colores hexadecimales escritos a mano en componentes ni degradados en bloques grandes.
+    - **Manejo de documentos sin guardar (`useUnsavedChanges`):** Bloc de notas (`text-editor`) y Paint (`paint`) implementan `useUnsavedChanges` y `dialogs.saveFile` alertando al usuario antes de cerrar con cambios pendientes. Las aplicaciones con autoguardado en storage (`notes`, `contacts`, `calendar`) nunca marcan `isDirty`.
+    - **Nombres dinámicos en la interfaz:** Cero textos fijos escritos a mano con "hebi OS" o nombres de apps en pantallas de error, asistentes o menús; todos se leen dinámicamente de `os.config.json` o de sus respectivos `manifest.json`.
+    - **Rutas visibles al usuario en formato Windows:** Ninguna ruta interna POSIX (`/Usuarios/...`) es visible en la interfaz; todas se transforman a formato Windows (`C:\Usuarios\...`) mediante `fs.toDisplayPath`.
+    - **Modo claro, modo oscuro y transparencia:** Las 17 aplicaciones y los 4 widgets se visualizan y operan correctamente en modo claro y modo oscuro, con efectos acrílicos/Mica y en modo sólido, respetando sus límites de tamaño mínimo de ventana (`minWidth` × `minHeight`).
+    - **Asociaciones de archivo y "Abrir con…":** Todos los formatos de archivo soportados tienen apps registradas. El menú contextual "Abrir con…" lista las aplicaciones compatibles y permite cambiar la aplicación predeterminada para la extensión seleccionada, persistiendo la preferencia en `fileAssociations.defaults`.
+    - **Liberación de hardware de medios:** Todos los streams de cámara y micrófono (`kernel/media`) se detienen estrictamente al cerrar o desmontar la ventana de la app, apagando el LED de hardware y el indicador en la bandeja del sistema.
+    - **Estados vacíos y localización:** Todas las listas vacías presentan el componente `EmptyState` de `@os/ui` y todos los mensajes de error e informativos están redactados en español claro.
+
+---
+
+## Verificación final del proyecto
+
+- **`npm run typecheck`:** 0 errores (código de salida 0).
+- **`npm run lint`:** 0 errores, 0 advertencias (código de salida 0).
+- **`npm run build`:** Compilación de producción exitosa en 4.24s (código de salida 0).
+
+### Lista de verificación de requisitos completados
+
+- [x] Ningún archivo ni acceso directo del escritorio aparece encima de la Papelera de reciclaje, y arrastrar íconos en el escritorio solo los mueve de celda sin duplicarlos.
+- [x] Hacer doble clic en cualquier carpeta del escritorio abre el Explorador de archivos directamente dentro de esa carpeta (`C:\Usuarios\<nombre>\Escritorio\<carpeta>`).
+- [x] Los widgets existentes en el escritorio ya no están encimados, se pueden arrastrar libremente a cualquier parte del escritorio y su menú "…" permite tanto Cambiar tamaño como Quitar (eliminándolos al instante).
+- [x] La transición de la Pantalla de bloqueo al Inicio de sesión se desliza hacia arriba con una animación suave y pausada (~600 ms).
+- [x] La app Ayuda muestra "Primeros pasos" y la guía completa de las 17 apps leída de sus `help.md`, con buscador funcional.
+- [x] Cambiar el `name`, `icon.svg` o `cover.png` de una app en su carpeta `meta/` actualiza su nombre e imagen en el menú Inicio, barra de tareas, escritorio, barra de título, Administrador de tareas, ventana "Acerca de", Ayuda y notificaciones sin tocar ningún archivo fuera de `meta/`.
+- [x] Guía de personalización `CUSTOMIZACION.md` redactada y documentada en la raíz del proyecto.
+- [x] Auditoría de consistencia documentada y proyecto finalizado al 100%.
+

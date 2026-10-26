@@ -39,6 +39,16 @@ export class NotificationsService {
     return item
   }
 
+  show(notif: {
+    appId: string
+    title: string
+    body?: string
+    sound?: boolean
+    launchArgs?: Record<string, unknown>
+  }): NotificationItem {
+    return this.post(notif)
+  }
+
   dismiss(id: string): void {
     this.activeNotifications.delete(id)
   }

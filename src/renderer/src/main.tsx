@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import '@fontsource/inter'
 import './system/theme/tokens.css'
 import { Shell } from './os/shell'
+import osConfig from './system/os.config.json'
 
 // Window-level error logging for developer insights
 window.addEventListener('error', (event) => {
@@ -56,7 +57,7 @@ class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErrorBound
         >
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
           <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>
-            Se produjo un error en la interfaz de hebi OS
+            Se produjo un error en la interfaz de {osConfig.name}
           </h2>
           <p style={{ fontSize: '13px', color: '#94a3b8', maxWidth: '480px', marginBottom: '24px' }}>
             {this.state.error?.message || 'Error inesperado durante la ejecución.'}
