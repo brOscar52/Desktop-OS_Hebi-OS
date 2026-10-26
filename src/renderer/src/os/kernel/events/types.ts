@@ -24,6 +24,7 @@ export interface EventMap {
   'notification:posted': { id: string; appId: string }
   'media:active': { camera: boolean; microphone: boolean }
   'scheduler:fired': { jobId: string; appId: string }
+  'calendar:events-changed': Record<string, never>
 }
 
 export type EventName = keyof EventMap

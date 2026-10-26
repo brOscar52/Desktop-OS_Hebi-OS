@@ -1,13 +1,22 @@
-import React, { useState, Suspense } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { settings, DesktopWidget } from '../../kernel/settings'
 import { getWidget } from '../../kernel/apps/registry'
 import { ContextMenu, ContextMenuEntry } from '../../ui/ContextMenu'
 import { DotLoader } from '../common/DotLoader'
+import { WindowContext } from '../../sdk/context'
 
 export const WidgetsHost: React.FC = () => {
   const [widgets, setWidgets] = useState<DesktopWidget[]>(settings.get('desktop.widgets') || [])
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; widgetId: string; instanceId: string } | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+
+  // React to changes in desktop.widgets setting immediately
+  useEffect(() => {
+    const unsub = settings.subscribe('desktop.widgets', (newWidgets) => {
+      setWidgets(newWidgets || [])
+    })
+    return () => unsub()
+  }, [])
 
   // Dragging state
   const handleStartDrag = (instance: DesktopWidget, e: React.PointerEvent) => {
@@ -195,7 +204,15 @@ export const WidgetsHost: React.FC = () => {
                   </div>
                 }
               >
-                <WidgetComponent />
+                <WindowContext.Provider
+                  value={{
+                    windowId: widgetInstance.id,
+                    appId: widgetInstance.widgetId,
+                    instanceId: widgetInstance.id
+                  }}
+                >
+                  <WidgetComponent />
+                </WindowContext.Provider>
               </Suspense>
             </div>
           </div>

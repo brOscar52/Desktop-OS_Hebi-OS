@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import auroraWallpaper from '../../../system/wallpapers/aurora.svg'
 import avatarDefault from '../../../system/icons/avatar-default.svg'
 import { useSession } from '../../kernel/session'
@@ -82,6 +82,15 @@ export const LockAndLoginScreen: React.FC = () => {
     }
   }
 
+  const passwordInputRef = useRef<HTMLInputElement>(null)
+
+  // Focus password input when transitioning to login view
+  useEffect(() => {
+    if (isLoginView) {
+      setTimeout(() => passwordInputRef.current?.focus(), 50)
+    }
+  }, [isLoginView])
+
   return (
     <div
       onClick={() => {
@@ -99,11 +108,14 @@ export const LockAndLoginScreen: React.FC = () => {
         overflow: 'hidden'
       }}
     >
-      {/* 1. LOCK SCREEN (Slides up when in login view) */}
+      {/* 1. LOCK COVER CURTAIN (Opaque, covers 100%, slides up on click/key) */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
+          backgroundImage: `url(${auroraWallpaper})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -112,9 +124,11 @@ export const LockAndLoginScreen: React.FC = () => {
           color: '#FFFFFF',
           textShadow: '0 2px 10px rgba(0, 0, 0, 0.4)',
           transform: isLoginView ? 'translateY(-100%)' : 'translateY(0)',
-          transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          opacity: isLoginView ? 0 : 1,
+          pointerEvents: isLoginView ? 'none' : 'auto',
+          transition: 'transform 240ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease',
           cursor: isLoginView ? 'default' : 'pointer',
-          zIndex: 10
+          zIndex: 20
         }}
       >
         {/* Top: Large Clock and Date */}
@@ -127,7 +141,7 @@ export const LockAndLoginScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Right: Status Icons */}
+        {/* Bottom Right: Status Icons (hidden completely when curtain slides up) */}
         <div style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '16px' }}>
           {/* WiFi icon */}
           <div title="Conectado a WiFi" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -145,7 +159,7 @@ export const LockAndLoginScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. LOGIN SCREEN (Revealed beneath Lock Screen) */}
+      {/* 2. LOGIN SCREEN (Revealed beneath Lock Screen curtain only when unlocked) */}
       <div
         style={{
           position: 'absolute',
@@ -156,6 +170,8 @@ export const LockAndLoginScreen: React.FC = () => {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
+          visibility: isLoginView ? 'visible' : 'hidden',
+          pointerEvents: isLoginView ? 'auto' : 'none',
           zIndex: 5
         }}
       >
@@ -211,10 +227,10 @@ export const LockAndLoginScreen: React.FC = () => {
             }}
           >
             <input
+              ref={passwordInputRef}
               type="password"
               placeholder="Contraseña"
               value={password}
-              autoFocus={isLoginView}
               onChange={(e) => setPassword(e.target.value)}
               style={{
                 width: '100%',

@@ -8,6 +8,11 @@ interface OutputLine {
   cwdDisplay?: string
 }
 
+interface ChainedCommand {
+  command: string
+  operator: '&&' | ';' | null
+}
+
 export default function TerminalApp(): JSX.Element {
   const os = useOS()
 
@@ -56,15 +61,16 @@ export default function TerminalApp(): JSX.Element {
     inputRef.current?.focus()
   }
 
-  // Resolve path relative to current working directory
+  // Resolve path relative to a base working directory
   const resolvePath = useCallback(
-    (argPath?: string): string => {
+    (argPath?: string, baseDir?: string): string => {
+      const current = baseDir || cwd
       if (!argPath || argPath.trim() === '') {
-        return cwd
+        return current
       }
       const trimmed = argPath.trim()
 
-      // Handle ~ or C:\ or /
+      // Handle ~ or C:\ or / or \
       if (
         trimmed === '~' ||
         trimmed.startsWith('~/') ||
@@ -77,7 +83,7 @@ export default function TerminalApp(): JSX.Element {
       }
 
       // Handle relative paths like "foo", "foo/bar", ".."
-      const combined = cwd === '/' ? `/${trimmed}` : `${cwd}/${trimmed}`
+      const combined = current === '/' ? `/${trimmed}` : `${current}/${trimmed}`
       return os.fs.fromDisplayPath(combined)
     },
     [cwd, os.fs]
@@ -114,49 +120,45 @@ export default function TerminalApp(): JSX.Element {
     }
   }
 
-  // Command Execution Handler
-  const executeCommand = async (commandLine: string) => {
-    const raw = commandLine.trim()
-    if (!raw) return
+  // Split line into chained commands (&& or ;) outside quotes
+  const splitChainedCommands = (line: string): ChainedCommand[] => {
+    const list: ChainedCommand[] = []
+    let currentCmd = ''
+    let inQuote: '"' | "'" | null = null
 
-    // Add to history
-    setHistory((prev) => [...prev, raw])
-    setHistoryIndex(-1)
-
-    // Add prompt line to output
-    const promptEntry: OutputLine = {
-      id: `prompt-${Date.now()}-${Math.random()}`,
-      type: 'prompt',
-      text: raw,
-      cwdDisplay: displayCwd
-    }
-
-    // Check for output redirection (> or >>)
-    let commandStr = raw
-    let redirectMode: '>' | '>>' | null = null
-    let redirectTarget: string | null = null
-
-    const redirectAppendIdx = raw.indexOf('>>')
-    if (redirectAppendIdx !== -1) {
-      redirectMode = '>>'
-      commandStr = raw.slice(0, redirectAppendIdx).trim()
-      redirectTarget = raw.slice(redirectAppendIdx + 2).trim()
-    } else {
-      const redirectOverwriteIdx = raw.indexOf('>')
-      if (redirectOverwriteIdx !== -1) {
-        redirectMode = '>'
-        commandStr = raw.slice(0, redirectOverwriteIdx).trim()
-        redirectTarget = raw.slice(redirectOverwriteIdx + 1).trim()
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"' || ch === "'") {
+        if (inQuote === ch) inQuote = null
+        else if (!inQuote) inQuote = ch
+        currentCmd += ch
+      } else if (!inQuote && ch === '&' && line[i + 1] === '&') {
+        list.push({ command: currentCmd.trim(), operator: '&&' })
+        currentCmd = ''
+        i++ // Skip second &
+      } else if (!inQuote && ch === ';') {
+        list.push({ command: currentCmd.trim(), operator: ';' })
+        currentCmd = ''
+      } else {
+        currentCmd += ch
       }
     }
 
-    // Parse tokens (respecting quotes)
+    if (currentCmd.trim()) {
+      list.push({ command: currentCmd.trim(), operator: null })
+    }
+
+    return list
+  }
+
+  // Parse command line tokens respecting quotes
+  const parseTokens = (cmdStr: string): string[] => {
     const tokens: string[] = []
     let currentToken = ''
     let inQuote: '"' | "'" | null = null
 
-    for (let i = 0; i < commandStr.length; i++) {
-      const ch = commandStr[i]
+    for (let i = 0; i < cmdStr.length; i++) {
+      const ch = cmdStr[i]
       if (ch === '"' || ch === "'") {
         if (inQuote === ch) {
           inQuote = null
@@ -177,10 +179,49 @@ export default function TerminalApp(): JSX.Element {
     if (currentToken.length > 0) {
       tokens.push(currentToken)
     }
+    return tokens
+  }
 
+  // Execute a single command relative to local working directory
+  const executeSingle = async (
+    cmdLine: string,
+    currentDir: string
+  ): Promise<{ output: string; type: OutputLine['type']; nextDir: string; shouldClear?: boolean }> => {
+    // Check for output redirection (> or >>)
+    let commandStr = cmdLine
+    let redirectMode: '>' | '>>' | null = null
+    let redirectTarget: string | null = null
+
+    // Look for redirection outside quotes
+    let inQuote: '"' | "'" | null = null
+    let redirIdx = -1
+    for (let i = 0; i < cmdLine.length; i++) {
+      const ch = cmdLine[i]
+      if (ch === '"' || ch === "'") {
+        if (inQuote === ch) inQuote = null
+        else if (!inQuote) inQuote = ch
+      } else if (!inQuote) {
+        if (ch === '>' && cmdLine[i + 1] === '>') {
+          redirIdx = i
+          redirectMode = '>>'
+          break
+        } else if (ch === '>') {
+          redirIdx = i
+          redirectMode = '>'
+          break
+        }
+      }
+    }
+
+    if (redirIdx !== -1 && redirectMode) {
+      commandStr = cmdLine.slice(0, redirIdx).trim()
+      const after = cmdLine.slice(redirIdx + (redirectMode === '>>' ? 2 : 1)).trim()
+      redirectTarget = after
+    }
+
+    const tokens = parseTokens(commandStr)
     if (tokens.length === 0) {
-      setLines((prev) => [...prev, promptEntry])
-      return
+      return { output: '', type: 'output', nextDir: currentDir }
     }
 
     const [cmd, ...args] = tokens
@@ -188,6 +229,7 @@ export default function TerminalApp(): JSX.Element {
 
     let outputText = ''
     let outputType: OutputLine['type'] = 'output'
+    let nextDir = currentDir
 
     try {
       switch (commandLower) {
@@ -216,13 +258,11 @@ export default function TerminalApp(): JSX.Element {
 
         case 'clear':
         case 'cls': {
-          setLines([])
-          setInput('')
-          return
+          return { output: '', type: 'output', nextDir: currentDir, shouldClear: true }
         }
 
         case 'pwd': {
-          outputText = displayCwd
+          outputText = os.fs.toDisplayPath(currentDir)
           break
         }
 
@@ -253,7 +293,7 @@ export default function TerminalApp(): JSX.Element {
 
         case 'cd': {
           const targetArg = args[0]
-          const target = resolvePath(targetArg || '~')
+          const target = resolvePath(targetArg || '~', currentDir)
 
           try {
             const stat = await os.fs.stat(target)
@@ -261,10 +301,10 @@ export default function TerminalApp(): JSX.Element {
               outputText = `cd: No se puede cambiar al directorio '${targetArg}'. No es un directorio.`
               outputType = 'error'
             } else {
-              setCwd(target)
+              nextDir = target
             }
           } catch {
-            outputText = `cd: No se encuentra la ruta '${targetArg}' porque no existe.`
+            outputText = `cd: No se encuentra la ruta '${targetArg || '~'}' porque no existe.`
             outputType = 'error'
           }
           break
@@ -274,7 +314,7 @@ export default function TerminalApp(): JSX.Element {
         case 'dir': {
           const isDetailed = args.includes('-l')
           const pathArg = args.find((a) => !a.startsWith('-'))
-          const target = resolvePath(pathArg)
+          const target = resolvePath(pathArg, currentDir)
 
           try {
             const items = await os.fs.list(target)
@@ -323,13 +363,23 @@ export default function TerminalApp(): JSX.Element {
         case 'mkdir':
         case 'md': {
           const recursive = args.includes('-p')
-          const dirArg = args.find((a) => !a.startsWith('-'))
-          if (!dirArg) {
+          const targets = args.filter((a) => !a.startsWith('-'))
+
+          if (targets.length === 0) {
             outputText = 'mkdir: Falta el nombre del directorio a crear.'
             outputType = 'error'
+          } else if (targets.includes('cd')) {
+            // User wrote unseparated: mkdir foo cd foo
+            const cdIdx = targets.indexOf('cd')
+            const toCreate = targets.slice(0, cdIdx)
+            for (const t of toCreate) {
+              await os.fs.mkdir(resolvePath(t, currentDir), { recursive })
+            }
+            outputText = `Aviso: Parece que intentaste encadenar comandos sin '&&'. Se crearon los directorios especificados.`
           } else {
-            const target = resolvePath(dirArg)
-            await os.fs.mkdir(target, { recursive })
+            for (const t of targets) {
+              await os.fs.mkdir(resolvePath(t, currentDir), { recursive })
+            }
           }
           break
         }
@@ -340,7 +390,7 @@ export default function TerminalApp(): JSX.Element {
             outputText = 'touch: Falta el nombre del archivo.'
             outputType = 'error'
           } else {
-            const target = resolvePath(fileArg)
+            const target = resolvePath(fileArg, currentDir)
             const exists = await os.fs.exists(target)
             if (exists) {
               const currentContent = await os.fs.readText(target)
@@ -359,14 +409,22 @@ export default function TerminalApp(): JSX.Element {
             outputText = 'cat: Falta el nombre del archivo.'
             outputType = 'error'
           } else {
-            const target = resolvePath(fileArg)
+            const target = resolvePath(fileArg, currentDir)
             outputText = await os.fs.readText(target)
           }
           break
         }
 
         case 'echo': {
-          outputText = args.join(' ')
+          let text = args.join(' ')
+          // Strip enclosing quotes if present
+          if (
+            (text.startsWith('"') && text.endsWith('"') && text.length >= 2) ||
+            (text.startsWith("'") && text.endsWith("'") && text.length >= 2)
+          ) {
+            text = text.slice(1, -1)
+          }
+          outputText = text
           break
         }
 
@@ -378,7 +436,7 @@ export default function TerminalApp(): JSX.Element {
             outputText = 'rm: Falta el archivo o directorio a eliminar.'
             outputType = 'error'
           } else {
-            const target = resolvePath(targetArg)
+            const target = resolvePath(targetArg, currentDir)
             const stat = await os.fs.stat(target)
             if (stat.kind === 'folder' && !recursive) {
               outputText = `rm: No se puede borrar el directorio '${targetArg}' sin la opción -r.`
@@ -396,8 +454,8 @@ export default function TerminalApp(): JSX.Element {
             outputText = 'mv: Se requieren dos argumentos: origen y destino.'
             outputType = 'error'
           } else {
-            const src = resolvePath(args[0])
-            const dest = resolvePath(args[1])
+            const src = resolvePath(args[0], currentDir)
+            const dest = resolvePath(args[1], currentDir)
             await os.fs.move(src, dest)
           }
           break
@@ -410,8 +468,8 @@ export default function TerminalApp(): JSX.Element {
             outputText = 'cp: Se requieren dos argumentos: origen y destino.'
             outputType = 'error'
           } else {
-            const src = resolvePath(filteredArgs[0])
-            const dest = resolvePath(filteredArgs[1])
+            const src = resolvePath(filteredArgs[0], currentDir)
+            const dest = resolvePath(filteredArgs[1], currentDir)
             await os.fs.copy(src, dest)
           }
           break
@@ -419,7 +477,7 @@ export default function TerminalApp(): JSX.Element {
 
         case 'tree': {
           const targetArg = args[0]
-          const target = resolvePath(targetArg)
+          const target = resolvePath(targetArg, currentDir)
           const treeLines = await generateTree(target)
           outputText = [os.fs.toDisplayPath(target), ...treeLines].join('\n')
           break
@@ -432,7 +490,7 @@ export default function TerminalApp(): JSX.Element {
             outputText = 'open: Especifica un archivo para abrir.'
             outputType = 'error'
           } else {
-            const target = resolvePath(targetArg)
+            const target = resolvePath(targetArg, currentDir)
             os.apps.openFile(target)
           }
           break
@@ -449,10 +507,10 @@ export default function TerminalApp(): JSX.Element {
       outputType = 'error'
     }
 
-    // Handle Redirection if output produced without fatal error
+    // Handle Redirection
     if (redirectMode && redirectTarget && outputType !== 'error') {
       try {
-        const destPath = resolvePath(redirectTarget)
+        const destPath = resolvePath(redirectTarget, currentDir)
         if (redirectMode === '>>') {
           let existing = ''
           try {
@@ -465,23 +523,63 @@ export default function TerminalApp(): JSX.Element {
         } else {
           await os.fs.writeFile(destPath, outputText, { overwrite: true })
         }
-        outputText = '' // Silenced output because redirected
+        outputText = '' // Silenced output when redirected
       } catch (err: unknown) {
         outputText = `Error de redirección: ${(err as Error).message}`
         outputType = 'error'
       }
     }
 
-    const nextLines: OutputLine[] = [promptEntry]
-    if (outputText !== '') {
-      nextLines.push({
-        id: `output-${Date.now()}-${Math.random()}`,
-        type: outputType,
-        text: outputText
-      })
+    return { output: outputText, type: outputType, nextDir }
+  }
+
+  // Master execution handler
+  const executeCommand = async (commandLine: string) => {
+    const raw = commandLine.trim()
+    if (!raw) return
+
+    setHistory((prev) => [...prev, raw])
+    setHistoryIndex(-1)
+
+    const promptEntry: OutputLine = {
+      id: `prompt-${Date.now()}-${Math.random()}`,
+      type: 'prompt',
+      text: raw,
+      cwdDisplay: displayCwd
     }
 
-    setLines((prev) => [...prev, ...nextLines])
+    const chained = splitChainedCommands(raw)
+    let runningDir = cwd
+    const generatedOutputs: OutputLine[] = [promptEntry]
+
+    for (let i = 0; i < chained.length; i++) {
+      const step = chained[i]
+      if (!step.command) continue
+
+      const res = await executeSingle(step.command, runningDir)
+      if (res.shouldClear) {
+        setLines([])
+        setInput('')
+        return
+      }
+
+      runningDir = res.nextDir
+      if (res.output !== '') {
+        generatedOutputs.push({
+          id: `out-${Date.now()}-${i}-${Math.random()}`,
+          type: res.type,
+          text: res.output
+        })
+      }
+
+      // If operator is && and an error occurred, break the chain
+      if (step.operator === '&&' && res.type === 'error') {
+        break
+      }
+    }
+
+    setCwd(runningDir)
+    setLines((prev) => [...prev, ...generatedOutputs])
     setInput('')
   }
 
@@ -509,56 +607,95 @@ export default function TerminalApp(): JSX.Element {
       }
     } else if (e.key === 'Tab') {
       e.preventDefault()
-      // Autocompletion
-      const words = input.split(' ')
-      const lastWord = words[words.length - 1]
+      if (!input.trim()) return
 
-      if (words.length === 1) {
+      const availableCommands = [
+        'help',
+        'ls',
+        'dir',
+        'cd',
+        'pwd',
+        'mkdir',
+        'md',
+        'touch',
+        'cat',
+        'type',
+        'echo',
+        'rm',
+        'del',
+        'mv',
+        'move',
+        'cp',
+        'copy',
+        'tree',
+        'open',
+        'start',
+        'date',
+        'whoami',
+        'clear',
+        'cls',
+        'history'
+      ]
+
+      // Extract last token
+      const lastSpace = input.lastIndexOf(' ')
+      const lastToken = lastSpace === -1 ? input : input.slice(lastSpace + 1)
+      const prefixBefore = lastSpace === -1 ? '' : input.slice(0, lastSpace + 1)
+
+      if (lastSpace === -1) {
         // Autocomplete command name
-        const availableCommands = [
-          'help',
-          'ls',
-          'dir',
-          'cd',
-          'pwd',
-          'mkdir',
-          'md',
-          'touch',
-          'cat',
-          'type',
-          'echo',
-          'rm',
-          'del',
-          'mv',
-          'move',
-          'cp',
-          'copy',
-          'tree',
-          'open',
-          'start',
-          'date',
-          'whoami',
-          'clear',
-          'cls',
-          'history'
-        ]
-        const match = availableCommands.find((c) => c.startsWith(lastWord.toLowerCase()))
+        const match = availableCommands.find((c) => c.startsWith(lastToken.toLowerCase()))
         if (match) {
           setInput(match + ' ')
         }
       } else {
-        // Autocomplete file/folder in current directory
+        // Autocomplete file or folder
+        const lastSlash = Math.max(lastToken.lastIndexOf('/'), lastToken.lastIndexOf('\\'))
+        const dirPart = lastSlash !== -1 ? lastToken.slice(0, lastSlash + 1) : ''
+        const filePrefix = lastSlash !== -1 ? lastToken.slice(lastSlash + 1) : lastToken
+
+        const targetFolder = resolvePath(dirPart, cwd)
         try {
-          const items = await os.fs.list(cwd)
-          const match = items.find((item) =>
-            item.name.toLowerCase().startsWith(lastWord.toLowerCase())
+          const items = await os.fs.list(targetFolder)
+          const matches = items.filter((item) =>
+            item.name.toLowerCase().startsWith(filePrefix.toLowerCase())
           )
-          if (match) {
-            words[words.length - 1] = match.kind === 'folder' ? `${match.name}/` : match.name
-            setInput(words.join(' '))
+
+          if (matches.length === 1) {
+            const m = matches[0]
+            const suffix = m.kind === 'folder' ? '\\' : ''
+            const completedToken = `${dirPart}${m.name}${suffix}`
+            setInput(prefixBefore + completedToken)
+          } else if (matches.length > 1) {
+            // Longest common prefix
+            let common = matches[0].name
+            for (let i = 1; i < matches.length; i++) {
+              while (
+                !matches[i].name.toLowerCase().startsWith(common.toLowerCase()) &&
+                common.length > 0
+              ) {
+                common = common.slice(0, -1)
+              }
+            }
+            if (common.length > filePrefix.length) {
+              const completedToken = `${dirPart}${common}`
+              setInput(prefixBefore + completedToken)
+            }
+            // Print matching candidates
+            const candidateStr = matches
+              .map((m) => (m.kind === 'folder' ? `[${m.name}]` : m.name))
+              .join('    ')
+            setLines((prev) => [
+              ...prev,
+              {
+                id: `tab-${Date.now()}`,
+                type: 'info',
+                text: candidateStr
+              }
+            ])
           }
         } catch {
-          // ignore
+          // Ignore list error on autocomplete
         }
       }
     } else if (e.ctrlKey && e.key.toLowerCase() === 'c') {

@@ -19,7 +19,7 @@ export interface FileBrowserProps {
 
 export const FileBrowser: React.FC<FileBrowserProps> = ({
   mode = 'open',
-  startPath = '/Usuario/Documentos',
+  startPath,
   extensions,
   multiple = false,
   foldersOnly = false,
@@ -29,7 +29,17 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
   style,
   className
 }) => {
-  const [currentPath, setCurrentPath] = useState<string>(startPath)
+  const homeDir = kernelFs.getHomeDir()
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    if (startPath) {
+      try {
+        return kernelFs.fromDisplayPath(startPath)
+      } catch {
+        return homeDir + '/Documentos'
+      }
+    }
+    return homeDir + '/Documentos'
+  })
   const [nodes, setNodes] = useState<FsNode[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [fileName, setFileName] = useState<string>(defaultName)
@@ -40,7 +50,8 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
     let isMounted = true
     const loadDir = async () => {
       try {
-        const list = await kernelFs.list(currentPath)
+        const resolved = kernelFs.fromDisplayPath(currentPath)
+        const list = await kernelFs.list(resolved)
         if (isMounted) {
           // Filter if foldersOnly or extensions
           let filtered = list
@@ -59,6 +70,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
         }
       } catch (err: unknown) {
         if (isMounted) {
+          setNodes([])
           setError((err as Error).message || 'Error al abrir la carpeta')
         }
       }
@@ -124,12 +136,12 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
   }
 
   const sidebarLocations = [
-    { label: 'Escritorio', path: '/Usuario/Escritorio' },
-    { label: 'Documentos', path: '/Usuario/Documentos' },
-    { label: 'Descargas', path: '/Usuario/Descargas' },
-    { label: 'Imágenes', path: '/Usuario/Imágenes' },
-    { label: 'Música', path: '/Usuario/Música' },
-    { label: 'Vídeos', path: '/Usuario/Vídeos' },
+    { label: 'Escritorio', path: `${homeDir}/Escritorio` },
+    { label: 'Documentos', path: `${homeDir}/Documentos` },
+    { label: 'Descargas', path: `${homeDir}/Descargas` },
+    { label: 'Imágenes', path: `${homeDir}/Imágenes` },
+    { label: 'Música', path: `${homeDir}/Música` },
+    { label: 'Videos', path: `${homeDir}/Videos` },
     { label: 'Disco local (C:)', path: '/' }
   ]
 

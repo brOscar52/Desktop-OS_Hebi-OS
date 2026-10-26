@@ -6,6 +6,7 @@ import { TitleBar } from './TitleBar'
 import { AppMenuBar } from './AppMenuBar'
 import { AboutDialog } from './AboutDialog'
 import { WindowModalHost } from './WindowModalHost'
+import { WindowErrorBoundary } from './WindowErrorBoundary'
 import { DotLoader } from '../common/DotLoader'
 import { WindowContext } from '../../sdk/context'
 
@@ -198,23 +199,25 @@ export const WindowFrame: React.FC<WindowFrameProps> = ({ window: win }) => {
               launchArgs: win.launchArgs
             }}
           >
-            <Suspense
-              fallback={
-                <div
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: 'var(--bg-window)'
-                  }}
-                >
-                  <DotLoader size={6} color="var(--accent-color)" />
-                </div>
-              }
-            >
-              <AppComponent />
-            </Suspense>
+            <WindowErrorBoundary windowId={win.id}>
+              <Suspense
+                fallback={
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: 'var(--bg-window)'
+                    }}
+                  >
+                    <DotLoader size={6} color="var(--accent-color)" />
+                  </div>
+                }
+              >
+                <AppComponent />
+              </Suspense>
+            </WindowErrorBoundary>
           </WindowContext.Provider>
         ) : (
           <div style={{ padding: '24px', color: 'var(--text-secondary)' }}>

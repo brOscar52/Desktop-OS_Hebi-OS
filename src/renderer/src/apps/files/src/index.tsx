@@ -32,8 +32,13 @@ export default function FilesApp(): JSX.Element {
   // Current navigation state
   const [currentPath, setCurrentPath] = useState<string>(() => {
     if (launchArgs.filePath) {
-      const idx = launchArgs.filePath.lastIndexOf('/')
-      return idx > 0 ? launchArgs.filePath.slice(0, idx) : '/'
+      try {
+        const resolved = os.fs.fromDisplayPath(launchArgs.filePath)
+        const idx = resolved.lastIndexOf('/')
+        return idx > 0 ? resolved.slice(0, idx) : '/'
+      } catch {
+        return homeDir
+      }
     }
     return homeDir
   })
@@ -88,9 +93,14 @@ export default function FilesApp(): JSX.Element {
   // Handle open file from outside (singleInstance or file opened)
   useOpenFileHandler((path: string) => {
     setIsTrashView(false)
-    const idx = path.lastIndexOf('/')
-    const folder = idx > 0 ? path.slice(0, idx) : '/'
-    navigateTo(folder)
+    try {
+      const resolved = os.fs.fromDisplayPath(path)
+      const idx = resolved.lastIndexOf('/')
+      const folder = idx > 0 ? resolved.slice(0, idx) : '/'
+      navigateTo(folder)
+    } catch {
+      navigateTo(homeDir)
+    }
   })
 
   // Initial selection if launchArgs has filePath

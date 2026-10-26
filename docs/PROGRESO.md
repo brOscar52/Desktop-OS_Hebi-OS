@@ -228,3 +228,121 @@ Documento de seguimiento del avance por fases según `ESPECIFICACION.md`.
 - **Desviaciones y contratos modificados:**
   - Se añadieron métodos auxiliares en `windowManager` (`closeByInstanceId`, `isInstanceDirty`) y en `useAccount` / `useProcesses` para dar soporte al cierre de tareas con comprobación de estado sucio (`isDirty`) requerido en la Sección 4.9.
 
+---
+
+## Correcciones obligatorias de las Fases 1, 2 y 3
+
+- **Estado:** Completada con éxito y verificado
+- **Fecha:** 2026-10-26
+- **Detalle de correcciones aplicadas:**
+  - [x] **1. Pantalla de bloqueo e Inicio de sesión superpuestos (`shell/login/LockAndLoginScreen.tsx`):**
+    - Se separaron de forma estricta los dos estados visuales del flujo (`cover` vs `credentials`).
+    - Estado `cover` (bloqueo): cortina al 100% de la pantalla con fondo opaco `aurora.svg`, hora y fecha grandes en la zona superior, e íconos de red Wi-Fi y batería en la esquina inferior derecha. Los elementos del formulario de credenciales y el botón de energía quedan completamente ocultos y deshabilitados (`pointerEvents: 'none'`).
+    - Transición a `credentials`: al hacer clic o pulsar cualquier tecla, la cortina se desliza hacia arriba (`transform: translateY(-100%)`, `opacity: 0`, transición fluida de 240ms cubic-bezier), ocultando también sus indicadores inferiores. Aparece la vista de inicio de sesión con fondo acrílico desenfocado, avatar, nombre de usuario, botón de energía abajo a la derecha y autoenfoque inmediato en el input de contraseña mediante `inputRef.current?.focus()`.
+  - [x] **2. Crash en blanco en Explorador de archivos (`apps/files`, `@os/ui/FileBrowser`, `shell/window-frame`):**
+    - **Aislamiento por ventana:** Se implementó `WindowErrorBoundary` en `src/renderer/src/os/shell/window-frame/WindowErrorBoundary.tsx` envolviendo el `<Suspense>` de cada ventana dentro de `WindowFrame.tsx`. Ante excepciones de renderizado de cualquier app, se presenta una tarjeta de error aislada con opciones [Reintentar] y [Cerrar ventana], impidiendo que caiga el escritorio o la ventana completa de Electron.
+    - **Rutas dinámicas en FileBrowser:** Se corrigieron las rutas fijas que causaban fallos en `FileBrowser.tsx`, sustituyendo `/Usuario/Escritorio` y `/.Papelera` por llamadas dinámicas a `kernelFs.getHomeDir() + '/Escritorio'` y `kernelFs.listTrash()`.
+    - **Validación de arranque en `apps/files`:** Se validó `launchArgs.filePath` con `os.fs.fromDisplayPath`, manejando estados undefined con fallback seguro a `~`.
+    - **Estabilización en `@os/sdk`:** Se estabilizaron los hooks `useFsWatch`, `useOpenFileHandler` y `useUnsavedChanges` utilizando `useRef` para funciones controladoras y normalización previa de rutas, eliminando dependencias inestables que provocaban bucles infinitos de renderizado.
+  - [x] **3. Terminal: cwd, comandos encadenados, redirección `>` y autocompletado Tab (`apps/terminal`, `kernel/fs`, `shell/desktop`):**
+    - **Directorio de trabajo (`cwd`):** La Terminal mantiene `cwd` interno POSIX iniciando en el home del usuario (`/Usuarios/<nombre>`).
+    - **Resolución relativa:** Función `resolveCwdPath(cwd, input)` para resolver rutas relativas (`MiProyecto`, `saludo.txt`, `../`) antes de operar en el VFS.
+    - **Encadenamiento secuencial:** Implementada la función `splitChainedCommands` para soportar `&&` y `;`, acumulando el directorio de trabajo durante el lote para que comandos como `mkdir MiProyecto && cd MiProyecto` cambien el directorio y actualicen el prompt a `PS C:\Usuarios\<nombre>\MiProyecto>`.
+    - **Redirección `echo` y sincronización con Escritorio:** Limpieza automática de comillas envolventes (`"..."` o `'...'`) en `echo`, resolución de ruta del archivo, escritura con `fs.writeFile` y emisión inmediata de `fs:changed`. En `Desktop.tsx`, se configuró `useFsWatch` sobre `~/Escritorio` (ruta expandida dinámicamente) para reflejar archivos creados desde la consola al instante sin recargar.
+    - **Autocompletado con Tab:** Interceptación con `e.preventDefault()`, resolución de prefijos simples y con subrutas (ej. `Escritorio/sal`), consulta a `fs.list`, compleción automática del nombre (con `\` al final si es directorio) y cálculo de prefijo común o impresión de sugerencias.
+  - [x] **4. Widgets del escritorio: reactividad en vivo y posicionamiento sin solapamiento (`shell/widgets-host`, `shell/desktop`):**
+    - **Reactividad:** Suscripción reactiva directa a `settings.subscribe('desktop.widgets', ...)` en `WidgetsHost.tsx`, garantizando que al añadir, mover, redimensionar o eliminar widgets se actualice el DOM de inmediato sin requerir recarga ni reautenticación.
+    - **Posicionamiento inteligente:** Algoritmo `findFreePosition` en `Desktop.tsx` con escaneo de retícula (margen de 20px) y verificación de colisiones entre cajas delimitadoras (bounding boxes), asegurando que los nuevos widgets se ubiquen en espacios libres sin solaparse.
+
+---
+
+## Fase 4 — Apps de productividad
+
+- **Estado:** Completada con éxito
+- **Fecha:** 2026-10-26
+- **Objetivo:** Implementar las 6 aplicaciones de productividad (`text-editor`, `calculator`, `calendar`, `clock`, `notes`, `contacts`) sobre `@os/sdk` y `@os/ui`, respetando estrictamente la paleta turquesa (#0D9488), cero degradados en bloques grandes y la regla `no-restricted-imports`.
+- **Detalle de tareas realizadas:**
+  - [x] **Bloc de notas (`apps/text-editor`):**
+    - Apertura, guardado (`os.fs.writeFile`), guardado como (`os.dialogs.saveFile`) y creación de nuevos documentos con soporte para `.txt` y `.md`.
+    - Apertura automática de archivo desde `launchArgs.filePath` e implementación de `useOpenFileHandler`.
+    - Título dinámico en la ventana: `<nombre> - Bloc de notas` anteponiendo un asterisco (`*<nombre> - Bloc de notas`) cuando hay cambios pendientes (`isDirty: true`).
+    - Conexión obligatoria con `useUnsavedChanges({ isDirty, documentName, save: handleSave })` para controlar el cierre por aspa, barra de tareas o apagado del sistema.
+    - Barra de menús (`useAppMenus`):
+      - *Archivo:* Nuevo (Ctrl+N), Abrir… (Ctrl+O), Guardar (Ctrl+S), Guardar como… (Ctrl+Mayús+S), Cerrar.
+      - *Editar:* Buscar… (Ctrl+F).
+      - *Ver:* Acercar (Ctrl++), Alejar (Ctrl+-), Restaurar zoom (Ctrl+0), Ajuste de línea.
+    - Barra de búsqueda integrable (Ctrl+F) con conteo de coincidencias, botones siguiente/anterior y resaltado en texto.
+    - Barra de estado inferior con: Línea X, columna Y, recuento total de caracteres, nivel de zoom y estado de ajuste de línea.
+    - Atajos de teclado acotados a la ventana cuando tiene el foco.
+  - [x] **Calculadora (`apps/calculator`):**
+    - Manifiesto con `resizable: false` y tamaño compacto (340×500 px).
+    - Modo estándar completo: suma, resta, multiplicación, división, porcentaje (%), cambio de signo (+/-), raíz cuadrada (√x), cuadrado (x²), inverso (1/x), CE, C y borrado de último dígito (⌫).
+    - Manejo seguro de división entre cero mostrando "No se puede dividir entre cero".
+    - Soporte completo para entrada por teclado numérico y operadores físicos al estar enfocada.
+    - Panel lateral plegable de historial de operaciones de la sesión con recuperación de resultados mediante clic.
+    - Cero uso de `eval` o `new Function` (evaluador aritmético determinista).
+  - [x] **Calendario (`apps/calendar`):**
+    - Vistas de Mes (cuadrícula mensual con indicadores de eventos por día) y de Día (agenda horaria por intervalos de 1 hora y lista de eventos), con botón de navegación rápida "Hoy".
+    - Creación, edición y eliminación de eventos con título, fecha (`YYYY-MM-DD`), hora de inicio (`HH:mm`), hora de fin (`HH:mm`), nota y recordatorio (`none`, `0`, `5`, `15`, `30`, `60` minutos).
+    - Integración con `os.scheduler.schedule` para programar recordatorios en segundo plano con sonido y notificación, y cancelación con `os.scheduler.cancel` al eliminar o desactivar avisos.
+    - Autoguardado automático en storage (`appData` de `calendar`, clave `events`) sin marcar `isDirty`.
+    - Emisión del evento `calendar:events-changed` para actualización reactiva en vivo del widget de Calendario en el escritorio.
+  - [x] **Reloj (`apps/clock`):**
+    - Navegación por pestañas: Reloj mundial, Alarmas, Temporizador y Cronómetro.
+    - *Reloj mundial:* hora local y lista de ciudades por zona horaria IANA con cálculo de diferencia horaria respecto a la local; adición y eliminación persistidas en storage.
+    - *Alarmas:* creación, edición y eliminación de alarmas con hora (`HH:mm`), etiqueta, repetición (`none`, `daily`, `weekdays`) e interruptor activar/desactivar. Registradas en `os.scheduler` con sonido de alarma para sonar aun con la app cerrada.
+    - *Temporizador:* configuración de horas, minutos y segundos, inicio, pausa y reinicio con indicador circular de progreso y registro en `os.scheduler` para disparar sonido y notificación al finalizar.
+    - *Cronómetro:* contador con centésimas de segundo, iniciar/pausar, registro de vueltas con tabla (vuelta, tiempo parcial, tiempo total) y reinicio.
+    - Control de audio con `useSystemVolume()`.
+  - [x] **Notas (`apps/notes`):**
+    - Panel izquierdo con búsqueda en tiempo real y lista de notas agrupadas (sección "Fijadas" y resto ordenadas por fecha de modificación).
+    - Creación, fijación/desfijación y eliminación con diálogo de confirmación destructivo (`os.dialogs.confirm`).
+    - Editor a la derecha con autoguardado en storage (nunca marca `isDirty`).
+    - Título generado automáticamente a partir de la primera línea no vacía (o "Nota sin título").
+    - Componente `EmptyState` cuando no hay notas creadas o ninguna coincide con la búsqueda.
+  - [x] **Contactos (`apps/contacts`):**
+    - Lista alfabética agrupada por inicial (A-Z) con búsqueda en tiempo real por nombre, teléfono o correo.
+    - Vista de detalle y formulario de creación/edición con: nombre, apellido, teléfonos múltiples con etiqueta (Móvil, Casa, Trabajo), correos, dirección, fecha de cumpleaños, notas y foto seleccionable desde el VFS (`os.dialogs.openFile` filtrando imágenes y mostrada con `fs.getObjectUrl`).
+    - Autoguardado en storage (nunca marca `isDirty`) y eliminación con confirmación destructiva.
+    - Componente `EmptyState` para listas vacías.
+  - [x] **Actualización de Widget Calendario (`widgets/calendar`):**
+    - Actualizado para leer los eventos compartidos de `calendar` vía `os.storage.get('events')`.
+    - Suscrito al evento `calendar:events-changed` para actualizar los puntos indicadores de eventos en el mes sin recargar el escritorio.
+
+### Esquema de datos del Calendario (compartido entre app y widget)
+
+Ubicación en Dexie: tabla `appData`, registro con `appId: "calendar"` y `key: "events"`.
+
+```json
+[
+  {
+    "id": "event-1730000000000-abcd",
+    "title": "Reunión de avance de proyecto",
+    "date": "2026-10-26",
+    "startTime": "09:00",
+    "endTime": "10:30",
+    "note": "Revisión de entregables de Fase 4",
+    "reminder": "15",
+    "schedulerJobId": "sched-1730000000000-xyz"
+  }
+]
+```
+
+Campos:
+- `id` (`string`): Identificador único del evento.
+- `title` (`string`): Título o asunto del evento.
+- `date` (`string`): Fecha en formato ISO local `YYYY-MM-DD`.
+- `startTime` (`string`): Hora de inicio en formato `HH:mm`.
+- `endTime` (`string`): Hora de fin en formato `HH:mm`.
+- `note` (`string`, opcional): Descripción o notas adicionales.
+- `reminder` (`string`, opcional): Minutos previos para el recordatorio (`"none"`, `"0"`, `"5"`, `"15"`, `"30"`, `"60"`).
+- `schedulerJobId` (`string`, opcional): ID de la tarea programada en `kernel/scheduler` (para cancelarla o reprogramarla).
+
+- **Verificación global de la Fase 4:**
+  - `npm run typecheck`: 0 errores.
+  - `npm run lint`: 0 errores, 0 advertencias.
+  - `npm run build`: Compilación de producción exitosa en 4.39s.
+  - Cumplimiento de contratos de arquitectura: cero imports no permitidos (`no-restricted-imports`).
+- **Desviaciones y contratos modificados:**
+  - Se agregó el evento `calendar:events-changed` a `EventMap` en `kernel/events/types.ts` y se expuso `events.emit` en `@os/sdk` para sincronizar en tiempo real el widget de escritorio del Calendario con las mutaciones de la aplicación Calendario.
+

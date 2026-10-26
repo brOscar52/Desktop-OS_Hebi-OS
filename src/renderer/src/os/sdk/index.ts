@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { AppManifest } from '../kernel/apps/manifest.schema'
 import { getApp, getAllApps } from '../kernel/apps/registry'
 import { fs as kernelFs, FsNode } from '../kernel/fs'
@@ -24,7 +24,7 @@ export type { AppMenu } from '../kernel/windows/types'
 export type { DialogsApi } from '../kernel/dialogs/types'
 export type { ProcessInfo } from '../kernel/processes'
 export type { WifiNetwork } from '../kernel/network'
-export type { UserAvatar, UserRecord } from '../kernel/storage'
+export type { UserAvatar, UserRecord, ScheduledRecord } from '../kernel/storage'
 export type { FsNode } from '../kernel/fs'
 
 export function useOS() {
@@ -117,7 +117,8 @@ export function useOS() {
         forget: (ssid: string) => kernelNetwork.forget(ssid)
       },
       events: {
-        on: <E extends EventName>(e: E, h: (d: EventData<E>) => void) => kernelEvents.on(e, h)
+        on: <E extends EventName>(e: E, h: (d: EventData<E>) => void) => kernelEvents.on(e, h),
+        emit: <E extends EventName>(e: E, d: EventData<E>) => kernelEvents.emit(e, d)
       }
     }
   }, [appId, instanceId, windowId])
@@ -132,9 +133,14 @@ export function useLaunchArgs(): LaunchArgs {
 
 export function useOpenFileHandler(handler: (path: string) => void): void {
   const { windowId } = useWindowContext()
+  const handlerRef = useRef(handler)
+  handlerRef.current = handler
+
   useEffect(() => {
-    windowManager.setOpenFileHandler(windowId, handler)
-  }, [windowId, handler])
+    windowManager.setOpenFileHandler(windowId, (path: string) => {
+      handlerRef.current(path)
+    })
+  }, [windowId])
 }
 
 export function useSetting<K extends SettingKey>(key: K): SettingValue<K> {
@@ -165,14 +171,20 @@ export function useSystemVolume(): number {
   return vol
 }
 
-export function useFsWatch(path: string): FsNode[] {
+export function useFsWatch(path?: string): FsNode[] {
   const [nodes, setNodes] = useState<FsNode[]>([])
 
   useEffect(() => {
+    if (!path) {
+      setNodes([])
+      return
+    }
+
     let isMounted = true
     const load = async () => {
       try {
-        const list = await kernelFs.list(path)
+        const resolved = kernelFs.fromDisplayPath(path)
+        const list = await kernelFs.list(resolved)
         if (isMounted) setNodes(list)
       } catch {
         if (isMounted) setNodes([])
@@ -206,9 +218,12 @@ export function useUnsavedChanges(opts: {
   save: () => Promise<boolean>
 }): void {
   const { windowId } = useWindowContext()
+  const saveRef = useRef(opts.save)
+  saveRef.current = opts.save
+
   useEffect(() => {
-    windowManager.setDirty(windowId, opts.isDirty, opts.documentName, opts.save)
-  }, [windowId, opts.isDirty, opts.documentName, opts.save])
+    windowManager.setDirty(windowId, opts.isDirty, opts.documentName, () => saveRef.current())
+  }, [windowId, opts.isDirty, opts.documentName])
 }
 
 export interface SystemProcessesApi {

@@ -95,7 +95,8 @@ export const Desktop: React.FC = () => {
 
   const loadDesktopFiles = async () => {
     try {
-      const list = await kernelFs.list('/Usuario/Escritorio')
+      const desktopDir = `${kernelFs.getHomeDir()}/Escritorio`
+      const list = await kernelFs.list(desktopDir)
       setDesktopFiles(list)
     } catch {
       setDesktopFiles([])
@@ -104,7 +105,7 @@ export const Desktop: React.FC = () => {
 
   const checkTrashCount = async () => {
     try {
-      const list = await kernelFs.list('/Papelera')
+      const list = await kernelFs.listTrash()
       setTrashCount(list.length)
     } catch {
       setTrashCount(0)
@@ -186,18 +187,75 @@ export const Desktop: React.FC = () => {
   const handleBackgroundContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
 
+    const clickX = e.clientX
+    const clickY = e.clientY
+
+    const getWidgetDims = (size: 'small' | 'medium' | 'large') => ({
+      w: size === 'small' ? 160 : 340,
+      h: size === 'large' ? 340 : 160
+    })
+
+    const isPositionFree = (posX: number, posY: number, w: number, h: number, existing: DesktopWidget[]): boolean => {
+      const margin = 20
+      const maxW = window.innerWidth
+      const maxH = window.innerHeight - 48
+      if (posX < 16 || posY < 16 || posX + w > maxW - 16 || posY + h > maxH - 16) {
+        return false
+      }
+
+      for (const ew of existing) {
+        const { w: ewW, h: ewH } = getWidgetDims(ew.size)
+        const overlapX = posX < ew.x + ewW + margin && posX + w + margin > ew.x
+        const overlapY = posY < ew.y + ewH + margin && posY + h + margin > ew.y
+        if (overlapX && overlapY) {
+          return false
+        }
+      }
+      return true
+    }
+
+    const findFreePosition = (size: 'small' | 'medium' | 'large', existing: DesktopWidget[]) => {
+      const { w, h } = getWidgetDims(size)
+      // 1. Try near click position
+      if (isPositionFree(clickX, clickY, w, h, existing)) {
+        return { x: clickX, y: clickY }
+      }
+
+      // 2. Scan grid slots starting from right side (standard widget area)
+      const maxW = window.innerWidth
+      const maxH = window.innerHeight - 48
+
+      for (let x = maxW - w - 28; x >= 24; x -= (w + 24)) {
+        for (let y = 24; y <= maxH - h - 24; y += (h + 24)) {
+          if (isPositionFree(x, y, w, h, existing)) {
+            return { x, y }
+          }
+        }
+      }
+
+      // 3. Fallback: cascading offset so they never stack exactly
+      const offset = (existing.length * 28) % 120
+      return {
+        x: Math.max(20, Math.min(maxW - w - 24, maxW - w - 32 - offset)),
+        y: Math.max(20, Math.min(maxH - h - 24, 24 + offset))
+      }
+    }
+
     const allWidgets = getAllWidgets()
     const widgetOptions: ContextMenuEntry[] = allWidgets.map((w) => ({
       key: `add-widget-${w.id}`,
       label: w.manifest.name,
       action: async () => {
         const current = settings.get('desktop.widgets') || []
+        const defaultSize = (w.manifest.defaultSize as 'small' | 'medium' | 'large') || 'small'
+        const pos = findFreePosition(defaultSize, current)
+
         const newWidget: DesktopWidget = {
           id: `widget-${w.id}-${Date.now()}`,
           widgetId: w.id,
-          size: w.manifest.defaultSize || 'small',
-          x: 400 + (current.length % 3) * 60,
-          y: 60 + (current.length % 4) * 60
+          size: defaultSize,
+          x: pos.x,
+          y: pos.y
         }
         await settings.set('desktop.widgets', [...current, newWidget])
       }
@@ -257,14 +315,16 @@ export const Desktop: React.FC = () => {
             key: 'new-folder',
             label: 'Carpeta',
             action: async () => {
-              await kernelFs.mkdir('/Usuario/Escritorio/Nueva carpeta')
+              const desktopDir = `${kernelFs.getHomeDir()}/Escritorio`
+              await kernelFs.mkdir(`${desktopDir}/Nueva carpeta`)
             }
           },
           {
             key: 'new-doc',
             label: 'Documento de texto',
             action: async () => {
-              await kernelFs.writeFile('/Usuario/Escritorio/Nuevo documento.txt', '')
+              const desktopDir = `${kernelFs.getHomeDir()}/Escritorio`
+              await kernelFs.writeFile(`${desktopDir}/Nuevo documento.txt`, '')
             }
           }
         ]
@@ -287,7 +347,7 @@ export const Desktop: React.FC = () => {
 
   // File item context menu
   const openFileContextMenu = (node: FsNode, clientX: number, clientY: number) => {
-    const fullPath = `/Usuario/Escritorio/${node.name}`
+    const fullPath = `${kernelFs.getHomeDir()}/Escritorio/${node.name}`
     const candidateApps = getAppsForFile(fullPath)
 
     const openWithEntries: ContextMenuEntry[] = candidateApps.map((app) => ({
@@ -395,7 +455,7 @@ export const Desktop: React.FC = () => {
       {
         key: 'open',
         label: 'Abrir',
-        action: () => windowManager.open('files', { path: '/Papelera' })
+        action: () => windowManager.open('files', { view: 'trash' })
       },
       'separator',
       {

@@ -1,11 +1,51 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useOS } from '@os/sdk'
+
+export interface CalendarEvent {
+  id: string
+  title: string
+  date: string
+  startTime: string
+  endTime: string
+  note?: string
+  reminder?: string
+  schedulerJobId?: string
+}
 
 export default function CalendarWidget(): JSX.Element {
+  const os = useOS()
   const [currentDate] = useState<Date>(new Date())
+  const [events, setEvents] = useState<CalendarEvent[]>([])
 
-  const today = new Date()
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
+
+  const todayStr = useMemo(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }, [])
+
+  // Load events from calendar storage
+  const loadEvents = useCallback(async () => {
+    try {
+      const saved = await os.storage.get<CalendarEvent[]>('events')
+      if (saved && Array.isArray(saved)) {
+        setEvents(saved)
+      } else {
+        setEvents([])
+      }
+    } catch {
+      setEvents([])
+    }
+  }, [os.storage])
+
+  useEffect(() => {
+    loadEvents()
+    const unsub = os.events.on('calendar:events-changed', () => {
+      loadEvents()
+    })
+    return () => unsub()
+  }, [loadEvents, os.events])
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -26,8 +66,24 @@ export default function CalendarWidget(): JSX.Element {
     days.push(d)
   }
 
+  // Find next upcoming event
+  const upcomingEvent = useMemo(() => {
+    const futureOrToday = events
+      .filter((ev) => ev.date >= todayStr)
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date)
+        return a.startTime.localeCompare(b.startTime)
+      })
+    return futureOrToday[0] || null
+  }, [events, todayStr])
+
+  const handleOpenApp = () => {
+    os.apps.launch('calendar')
+  }
+
   return (
     <div
+      onClick={handleOpenApp}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -36,8 +92,10 @@ export default function CalendarWidget(): JSX.Element {
         padding: '12px',
         boxSizing: 'border-box',
         color: 'var(--text-primary)',
-        userSelect: 'none'
+        userSelect: 'none',
+        cursor: 'pointer'
       }}
+      title="Abrir Calendario"
     >
       <div
         style={{
@@ -50,8 +108,8 @@ export default function CalendarWidget(): JSX.Element {
         <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)' }}>
           {monthNames[month]} {year}
         </span>
-        <span style={{ fontSize: '11px', color: 'var(--accent-color)' }}>
-          Hoy
+        <span style={{ fontSize: '11px', color: 'var(--accent-color)', fontWeight: 600 }}>
+          Hoy {today.getDate()}
         </span>
       </div>
 
@@ -87,15 +145,15 @@ export default function CalendarWidget(): JSX.Element {
             return <div key={`empty-${idx}`} style={{ padding: '2px 0' }} />
           }
 
-          const isToday =
-            day === today.getDate() &&
-            month === today.getMonth() &&
-            year === today.getFullYear()
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+          const isToday = dateStr === todayStr
+          const hasEvent = events.some((ev) => ev.date === dateStr)
 
           return (
             <div
               key={`day-${day}`}
               style={{
+                position: 'relative',
                 padding: '2px 0',
                 borderRadius: 'var(--radius-full)',
                 backgroundColor: isToday ? 'var(--accent-color)' : 'transparent',
@@ -104,15 +162,48 @@ export default function CalendarWidget(): JSX.Element {
               }}
             >
               {day}
+              {hasEvent && !isToday && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '1px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '3px',
+                    height: '3px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--accent-color)'
+                  }}
+                />
+              )}
             </div>
           )
         })}
       </div>
 
-      <div style={{ marginTop: 'auto', paddingTop: '6px', borderTop: '1px solid var(--border-subtle)' }}>
-        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-          No hay eventos próximos
-        </span>
+      {/* Footer: Upcoming Event */}
+      <div
+        style={{
+          marginTop: 'auto',
+          paddingTop: '6px',
+          borderTop: '1px solid var(--border-subtle)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}
+      >
+        {upcomingEvent ? (
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+            <strong style={{ color: 'var(--accent-color)' }}>{upcomingEvent.startTime}</strong> {upcomingEvent.title} ({upcomingEvent.date === todayStr ? 'Hoy' : upcomingEvent.date})
+          </span>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+            No hay eventos próximos
+          </span>
+        )}
       </div>
     </div>
   )
