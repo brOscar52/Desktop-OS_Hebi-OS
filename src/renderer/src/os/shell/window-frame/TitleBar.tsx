@@ -194,7 +194,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ window: win, onStartDrag, on
           {win.state === 'maximized' ? '❐' : '□'}
         </button>
 
-        {/* Close Button: turns red (#c42b1c) on hover per spec */}
+        {/* Close Button: turns red (#c42b1c) on hover */}
         <button
           type="button"
           onClick={() => windowManager.close(win.id)}

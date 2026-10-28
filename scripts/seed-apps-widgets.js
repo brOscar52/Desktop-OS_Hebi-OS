@@ -402,7 +402,7 @@ export default function ${app.id.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
   return (
     <EmptyState
       title="${app.name}"
-      description="Esta aplicación estará disponible en una fase posterior."
+      description="No hay elementos disponibles."
     />
   )
 }

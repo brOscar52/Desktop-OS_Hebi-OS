@@ -19,7 +19,7 @@ Un simulador de sistema operativo de escritorio que corre como aplicación Elect
   - ventanas con los botones minimizar, maximizar y cerrar a la derecha;
   - esquinas redondeadas;
   - materiales translúcidos tipo Mica/Acrílico (desenfoque y tinte uniforme con `backdrop-filter`);
-  - superficies limpias sin degradados en bloques grandes (evitando la estética artificial típica de IA; los degradados solo se aceptan en elementos pequeños como íconos o detalles diminutos);
+  - superficies limpias sin degradados en bloques grandes (manteniendo una estética sobria y minimalista; los degradados solo se aceptan en elementos pequeños como íconos o detalles diminutos);
   - iconografía de línea;
   - animaciones cortas y suaves.
 - **Prohibido usar recursos propietarios de Microsoft:** el logotipo de Windows, las fuentes Segoe UI y Segoe Fluent Icons, los fondos de pantalla oficiales y los sonidos de Windows. El botón de Inicio usa un logo propio. Sí se permiten los íconos Fluent UI System Icons, que tienen licencia MIT (ver sección 2).
@@ -79,7 +79,6 @@ No agregar dependencias fuera de esta lista sin justificarlo en `docs/PROGRESO.m
 ```
 /
 ├─ ESPECIFICACION.md              ← este documento
-├─ CLAUDE.md                      ← reglas de trabajo (se crea en la Fase 0)
 ├─ CUSTOMIZACION.md               ← guía de personalización (se crea en la Fase 6)
 ├─ docs/PROGRESO.md               ← bitácora de fases
 ├─ electron.vite.config.ts
@@ -633,8 +632,8 @@ La ventana **"Acerca de &lt;App&gt;"** (sección 4.8) muestra ícono, portada, n
 - **Paleta cromática (turquesa, azul y verde):**
   - **Color principal:** **turquesa** (color de énfasis predeterminado en `os.config.json`, usado en acciones primarias, estados activos y foco).
   - **Colores secundarios:** **azul** y **verde**, integrados armónicamente como tonos de soporte para acciones secundarias, indicadores del sistema, etiquetas, estados informativos/éxito y variaciones de la paleta en Configuración.
-- **Uso de degradados (restricción anti-estética IA):**
-  - **Prohibido usar degradados de color en bloques grandes** (fondos de ventanas, paneles laterales, barras, tarjetas, modales o cabeceras amplias) que den aspecto genérico o generado por IA. Las superficies grandes deben mantenerse limpias mediante colores planos o materiales translúcidos uniformes.
+- **Uso de degradados:**
+  - **Prohibido usar degradados de color en bloques grandes** (fondos de ventanas, paneles laterales, barras, tarjetas, modales o cabeceras amplias) para mantener una interfaz sobria y limpia. Las superficies grandes deben mantenerse limpias mediante colores planos o materiales translúcidos uniformes.
   - **Se aceptan degradados únicamente en elementos pequeños** y puntuales: íconos SVG, badges, indicadores diminutos o microdetalles de interfaz.
 - Materiales:
   - **Mica** en el fondo de ventanas y barra de tareas: tinte semitransparente uniforme sobre desenfoque fuerte.
@@ -665,7 +664,7 @@ La ventana **"Acerca de &lt;App&gt;"** (sección 4.8) muestra ícono, portada, n
 
 **Íconos y fondos**
 - Íconos de apps originales en SVG, en estilo Fluent: formas simples con degradados suaves (permitidos por ser piezas pequeñas), perspectiva ligeramente frontal, colores armónicos dentro de la gama turquesa, azul y verde con brillo sutil, misma retícula para todos.
-- Generar entre 4 y 6 fondos de pantalla propios (SVG o PNG generados: composiciones geométricas u orgánicas limpias en la paleta turquesa, azul y verde, en versiones clara y oscura, evitando plastas de degradados estridentes con aspecto de IA). Uno se llama `aurora`.
+- Generar entre 4 y 6 fondos de pantalla propios (SVG o PNG generados: composiciones geométricas u orgánicas limpias en la paleta turquesa, azul y verde, en versiones clara y oscura, evitando composiciones estridentes). Uno se llama `aurora`.
 
 **Componentes compartidos**
 - `@os/ui` contiene los componentes mínimos que reutilizan todas las apps: `Button`, `IconButton`, `TextField`, `TextArea`, `Select`, `Toggle`, `Slider`, `Checkbox`, `SegmentedControl`, `NavigationPane`, `List`, `CommandBar`, `Tabs`, `EmptyState`, `AppIcon`, `FileIcon`, `FileBrowser`, `ContextMenu`, `Flyout`, `InfoBar`.
@@ -718,7 +717,7 @@ Reglas para todas las fases:
 - Crear las carpetas de los 4 widgets con `meta/` completo y componente provisional: `clock`, `calendar` (con `ownerApp: "calendar"`), `quick-note` y `system-status`.
 - Esquema Zod de manifiestos y registro con descubrimiento automático (sección 4.6).
 - Pantalla temporal que lista las apps registradas con ícono, nombre y descripción. Se elimina en la Fase 2.
-- Crear `CLAUDE.md` con el texto "La especificación es `ESPECIFICACION.md`; léela antes de cada fase y sigue las reglas de la sección 7", más los comandos del proyecto.
+- Configurar scripts y comandos del proyecto en `package.json` (`dev`, `build`, `typecheck`, `lint`).
 - Crear `docs/PROGRESO.md`.
 
 **Verificación:**

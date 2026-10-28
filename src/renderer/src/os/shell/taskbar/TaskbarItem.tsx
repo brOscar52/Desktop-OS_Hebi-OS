@@ -125,7 +125,7 @@ export const TaskbarItem: React.FC<TaskbarItemProps> = ({
     >
       <AppIcon appId={appId} size={24} />
 
-      {/* Indicator bar beneath icon per spec */}
+      {/* Indicator bar beneath icon */}
       {isRunning && (
         <div
           style={{

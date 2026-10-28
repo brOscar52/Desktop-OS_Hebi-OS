@@ -101,7 +101,7 @@ export default function TaskManagerApp(): JSX.Element {
       return
     }
 
-    // Check if target window has unsaved changes per Section 4.9
+    // Check if target window has unsaved changes
     const dirtyInfo = procApi.isDirty(target.instanceId)
     if (dirtyInfo.isDirty) {
       const docName = dirtyInfo.documentName || target.name

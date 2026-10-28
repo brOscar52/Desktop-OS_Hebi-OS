@@ -53,7 +53,7 @@ export class SoundService {
   }
 
   playSystem(name: SystemSound): void {
-    // If system sounds disabled, only alarm and shutter are allowed to sound (Section 4.13)
+    // If system sounds disabled, only alarm and shutter are allowed to sound
     if (!this.systemSounds && name !== 'alarm' && name !== 'shutter') {
       return
     }

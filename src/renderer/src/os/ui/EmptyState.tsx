@@ -8,8 +8,8 @@ export interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  title = 'Disponible pronto',
-  description = 'Esta aplicación se completará en una fase posterior.',
+  title = 'Sin contenido',
+  description = 'No hay elementos disponibles para mostrar.',
   icon,
   action
 }) => {

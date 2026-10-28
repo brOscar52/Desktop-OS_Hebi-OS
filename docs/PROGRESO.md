@@ -11,7 +11,7 @@ Documento de seguimiento del avance por fases según `ESPECIFICACION.md`.
 - **Objetivo:** Proyecto que arranca, seguro, con toda la estructura y todos los manifiestos en su lugar.
 - **Detalle de tareas realizadas:**
   - [x] Copia y sincronización de la especificación como `ESPECIFICACION.md`.
-  - [x] Creación de `CLAUDE.md` con lineamientos de desarrollo y comandos del proyecto.
+  - [x] Configuración de lineamientos de desarrollo y comandos del proyecto en `package.json`.
   - [x] Inicialización del repositorio git y `.gitignore`.
   - [x] Configuración de dependencias en `package.json`: Electron, electron-vite, React 18, TypeScript strict, Zustand, Dexie 4, Zod, @fluentui/react-icons, @fontsource/inter, ESLint.
   - [x] Configuración de `electron.vite.config.ts` con alias `@os/sdk`, `@os/ui`, `@system`, `@shared` y plugin de React.

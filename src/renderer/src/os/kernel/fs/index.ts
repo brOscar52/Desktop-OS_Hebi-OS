@@ -678,7 +678,7 @@ export class VirtualFileSystem implements FsApi {
     const musicFolder = await createSubfolder('Música', homeNode.id)
     const vidFolder = await createSubfolder('Videos', homeNode.id)
 
-    // Nested folders (Section 4.3):
+    // Nested media folders:
     // Imágenes/Cámara, Música/Grabaciones, Videos/Cámara
     await createSubfolder('Cámara', imgFolder.id)
     await createSubfolder('Grabaciones', musicFolder.id)

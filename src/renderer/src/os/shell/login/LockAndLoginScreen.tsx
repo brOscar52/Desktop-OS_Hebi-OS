@@ -359,7 +359,7 @@ export const LockAndLoginScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Invalid Password Dialog (Section 7, Fase 1) */}
+      {/* Invalid Password Dialog */}
       {error && (
         <div
           style={{
